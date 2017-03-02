@@ -43,6 +43,25 @@ interface IListeners {
 
 type Verb = 'GET' | 'POST' | 'PUT' | 'DELETE';
 
+
+interface BaseOptions<T> {
+    url: string;
+    parse: (a: any) => T;
+    params?: any;
+    headers?: any;
+}
+
+export interface GetOptions<T> extends BaseOptions<T> { }
+
+export interface PostOptions<T> extends BaseOptions<T> {
+    body: any;
+    progress?: (a: boolean, b: number, c: number) => void;
+}
+
+export interface PutOptions<T> extends PostOptions<T> { }
+
+export interface DelOptions<T> extends BaseOptions<T> { }
+
 interface ITransportOptions {
     verb: Verb;
     url: string;
@@ -130,8 +149,9 @@ interface IBaseHandlers {
     successHandler(e: Event): void;
 }
 
-const getBaseHandlers: (a: IResolve, b: IReject, c: any) => IBaseHandlers =
-    (resolve, reject, options) => {
+
+const getBaseHandlers =
+    function <T>(resolve: IResolve, reject: IReject, options: BaseOptions<T>): IBaseHandlers {
         const errorhandler = (e: Event) => {
             const xhr = <XMLHttpRequest>e.target;
             reject(new Error(xhr.statusText));
@@ -161,13 +181,15 @@ class Transport extends EventEmitter {
         this.transport = transportXHR();
     }
 
-    get(url: string, getOptions: any) {
+    get<T>(getOptions: GetOptions<T>) {
+        const {url} = getOptions;
         const transport = this.transport;
         getOptions = getOptions || {};
 
         const resolver: IResolver =
             (resolve, reject) => {
-                const {errorhandler, successHandler} = getBaseHandlers(resolve, reject, getOptions);
+                const {errorhandler, successHandler} =
+                    getBaseHandlers<T>(resolve, reject, getOptions);
 
                 const options: ITransportOptions = {
                     listeners: {
@@ -186,20 +208,21 @@ class Transport extends EventEmitter {
                 transport(options);
             };
 
-        return new Promise(resolver);
+        return new Promise<T>(resolver);
     }
 
-    _write(verb: Verb, url: string, postOptions: any) {
+    _write<T>(verb: Verb, url: string, postOptions: PostOptions<T> | PutOptions<T>) {
         const transport = this.transport;
         postOptions = postOptions || {};
 
         const resolver: IResolver =
             (resolve, reject) => {
-                const {errorhandler, successHandler} = getBaseHandlers(resolve, reject, postOptions);
+                const {errorhandler, successHandler} =
+                    getBaseHandlers<T>(resolve, reject, postOptions);
 
                 const progressHandler: (a: ProgressEvent) => void =
                     (evt) => {
-                        if (_.isFunction(postOptions.progress)) {
+                        if (postOptions.progress) {
                             postOptions.progress(
                                 evt.lengthComputable,
                                 evt.loaded,
@@ -241,24 +264,25 @@ class Transport extends EventEmitter {
                 transport(options);
             };
 
-        return new Promise(resolver);
+        return new Promise<T>(resolver);
     }
 
-    post(url: string, options: any) {
-        return this._write('POST', url, options);
+    post<T>(options: PostOptions<T>) {
+        return this._write<T>('POST', options.url, options);
     }
 
-    put(url: string, options: any) {
-        return this._write('PUT', url, options);
+    put<T>(options: PutOptions<T>) {
+        return this._write<T>('PUT', options.url, options);
     }
 
-    del(url: string, delOptions: any) {
+    del<T>(delOptions: DelOptions<T>) {
         const transport = this.transport;
         delOptions = delOptions || {};
 
         const resolver: IResolver =
             (resolve, reject) => {
-                const {errorhandler, successHandler} = getBaseHandlers(resolve, reject, delOptions);
+                const {errorhandler, successHandler} =
+                    getBaseHandlers<T>(resolve, reject, delOptions);
 
                 const options: ITransportOptions = {
                     listeners: {
@@ -270,14 +294,14 @@ class Transport extends EventEmitter {
                     headers: _.extend({}, delOptions.headers),
                     params: delOptions.params,
                     verb: 'DELETE',
-                    url: url,
+                    url: delOptions.url,
                     body: null
                 };
 
                 transport(options);
             };
 
-        return new Promise(resolver);
+        return new Promise<T>(resolver);
     }
 }
 

@@ -1,28 +1,38 @@
-import glMatrix from '../vendors/gl-matrix';
 
-const mat3 = glMatrix.mat3;
-const vec2 = glMatrix.vec2;
+import { mat3, vec2 } from 'gl-matrix';
+
 
 class Matrix {
-    constructor(a, b, c, d, e, f) {
+    private m: mat3;
+
+    constructor(a?: number | Matrix | number[], b?: number, c?: number, d?: number, e?: number, f?: number) {
         if (0 === arguments.length) {
             this.m = mat3.create();
         }
         else if (1 === arguments.length) {
-            if (arguments[0] instanceof Matrix) {
-                this.m = arguments[0].m.clone();
+            if (a instanceof Matrix) {
+                Matrix.prototype.parseFlat.apply(this, (<Matrix>a).flat());
             }
-            else if (Array.isArray(arguments[0])) {
+            else if (Array.isArray(a)) {
                 // we assume flat matrix
-                Matrix.prototype.parseFlat.apply(this, arguments[0]);
+                Matrix.prototype.parseFlat.apply(this, <number[]>a);
             }
         }
         else if (6 === arguments.length) {
-            this.parseFlat(a,b,c,d,e,f);
+            this.parseFlat(a, b, c, d, e, f);
         }
     }
 
     //////////////////// IMPL ///////////////////////
+
+    get mat() {
+        return mat3.clone(this.m);
+    }
+
+    get matRef() {
+        return this.m;
+    }
+
 
 
     clone() {
@@ -31,19 +41,16 @@ class Matrix {
         return mx;
     }
 
-    parseFlat(a, b, c, d, e, f) {
-        this.m = mat3.create();
-        mat3.copy(this.m,
-        [
+    parseFlat(a: number, b: number, c: number, d: number, e: number, f: number) {
+        this.m = mat3.fromValues(
             a, b, 0,
             c, d, 0,
             e, f, 1
-        ]
         );
     }
 
     flat() {
-        const fm = new Array(6);
+        const fm: number[] = new Array(6);
         fm[0] = this.m[0];
         fm[1] = this.m[1];
         fm[2] = this.m[3];
@@ -59,7 +66,7 @@ class Matrix {
     * @param o {Matrix}
     * @returns {Matrix}
     */
-    mul(o) {
+    mul(o: Matrix) {
         mat3.multiply(this.m, this.m, o.m);
         return this;
     }
@@ -75,16 +82,11 @@ class Matrix {
 * Transformation
 */
 class Transform {
-    constructor() {
-        if (arguments.length > 0) {
-            if (arguments[0] instanceof Transform) {
-                this.m = arguments[0].m.clone();
-            }
-            else {
-                const mx = new Matrix();
-                Matrix.apply(mx, arguments);
-                this.m = mx;
-            }
+    private m: Matrix;
+
+    constructor(t?: Transform) {
+        if (t) {
+            this.m = t.m.clone();
         }
         else {
             this.m = new Matrix();
@@ -99,7 +101,7 @@ class Transform {
     toString() {
 
         function decimalAdjust(type, value, exp) {
-        // If the exp is undefined or zero...
+            // If the exp is undefined or zero...
             if (typeof exp === 'undefined' || +exp === 0) {
                 return Math[type](value);
             }
@@ -117,7 +119,7 @@ class Transform {
             return +(`${value[0]}e${value[1] ? (+value[1] + exp) : exp}`);
         }
 
-        function adjust (type, a, exp) {
+        function adjust(type, a, exp) {
             for (let i = 0; i < a.length; i++) {
                 a[i] = decimalAdjust(type, a[i], exp);
             }
@@ -129,14 +131,15 @@ class Transform {
         return s;
     }
 
-    reset(t) {
+    reset(t: Transform): Transform {
         this.m = t.m.clone();
         return this;
     }
 
     clone() {
         const t = new Transform();
-        return this.reset.apply(t, [this]);
+        this.reset.call(t, this);
+        return t;
     }
 
     inverse() {
@@ -146,18 +149,18 @@ class Transform {
         return inverse;
     }
 
-    multiply(t) {
-        if(t instanceof Matrix){
+    multiply(t: Transform | Matrix): Transform {
+        if (t instanceof Matrix) {
             this.m.mul(t);
         }
-        else{
+        else {
             this.m.mul(t.m);
         }
         return this;
     }
 
-    translate(tx, ty) {
-        mat3.translate(this.m.m, this.m.m, [tx, ty]);
+    translate(tx: number, ty: number): Transform {
+        mat3.translate(this.m.matRef, this.m.mat, [tx, ty]);
         return this;
     }
 
@@ -171,84 +174,65 @@ class Transform {
     * @param origin {Geom.Point}|{}
     * @returns {Transform}
     */
-    scale(sx, sy, origin) {
-        const scaleMat = new Matrix();
+    scale(sx: number, sy: number, origin: number[]) {
+        const sm = new Matrix();
 
         if (undefined !== origin) {
-            mat3.translate(scaleMat.m, scaleMat.m, [origin[0], origin[1]]);
-            mat3.scale(scaleMat.m, scaleMat.m, [sx, sy]);
-            mat3.translate(scaleMat.m, scaleMat.m, [-origin[0] , -origin[1]]);
+            mat3.translate(sm.matRef, sm.mat, [origin[0], origin[1]]);
+            mat3.scale(sm.matRef, sm.mat, [sx, sy]);
+            mat3.translate(sm.matRef, sm.mat, [-origin[0], -origin[1]]);
         }
-        else
-        {
-            mat3.scale(scaleMat.m, scaleMat.m, [sx, sy]);
+        else {
+            mat3.scale(sm.matRef, sm.mat, [sx, sy]);
         }
-        this.m.mul(scaleMat);
+        this.m.mul(sm);
         return this;
     }
 
-    rotate(r, origin) {
+    rotate(r: number, origin: number[]) {
         const rGrad = r * Math.PI / 180.0;
-        const rotMat = new Matrix();
+        const rm = new Matrix();
 
         if (undefined !== origin) {
-            mat3.translate(rotMat.m, rotMat.m, [origin[0], origin[1]]);
-            mat3.rotate(rotMat.m, rotMat.m, rGrad);
-            mat3.translate(rotMat.m, rotMat.m, [-origin[0], -origin[1]]);
+            mat3.translate(rm.matRef, rm.mat, [origin[0], origin[1]]);
+            mat3.rotate(rm.matRef, rm.mat, rGrad);
+            mat3.translate(rm.matRef, rm.mat, [-origin[0], -origin[1]]);
         }
-        else
-        {
-            mat3.rotate(rotMat.m, rotMat.m, rGrad);
+        else {
+            mat3.rotate(rm.matRef, rm.mat, rGrad);
         }
-        this.m.mul(rotMat);
+        this.m.mul(rm);
         return this;
     }
 
     getScale() {
-        return [this.m.m[0], this.m.m[4]];
+        return [this.m.mat[0], this.m.mat[4]];
     }
 
     getTranslate() {
-        return [this.m.m[6], this.m.m[7]];
+        return [this.m.mat[6], this.m.mat[7]];
     }
 
     /**
      * an array [x,y]
      */
-    mapVec2(v) {
-        return vec2.transformMat3(v, v, this.m.m);
+    mapVec2(v: vec2) {
+        return vec2.transformMat3(v, v, this.m.mat);
     }
 
-    mapVec2Fn(name) {
+    mapVec2Fn(name?: string) {
         const m = this.m.clone();
-
-        const f = v => vec2.transformMat3(v, v, m.m);
+        const f: (a: vec2) => vec2 =
+            (v: vec2) => vec2.transformMat3(v, v, m.mat);
 
         if (name) {
             try {
-                Object.defineProperty(f, 'name', {value:name});
+                Object.defineProperty(f, 'name', { value: name });
             }
-            catch (e) {}
+            catch (e) { }
         }
         return f;
     }
-
-    /**
-     * an array of vec2s [[x,y], [x,y], ...]
-     */
-    mapCoordinates(coordinates) {
-        for (let i = coordinates.length - 1; i >= 0; i--) {
-            this.mapVec2(coordinates[i]);
-        }
-        return coordinates;
-    }
-
-    mapPoint(p) {
-        const v = this.mapVec2([p.x, p.y]);
-        p.x = v[0];
-        p.y = v[1];
-        return p;
-    }
 }
 
-export default  Transform;
+export default Transform;

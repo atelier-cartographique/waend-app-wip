@@ -8,68 +8,73 @@
  *
  */
 
-import EventEmitter from 'events';
-import Promise from 'bluebird';
-import _ from 'lodash';
+import { EventEmitter } from 'events';
+import * as Promise from 'bluebird';
+import * as _ from 'lodash';
+
+enum Status {
+    Open,
+    Close
+}
 
 class Stream extends EventEmitter {
+    private entries: any[];
+    private openStatus: Status;
 
-    constructor(noAutoOpen) {
+    constructor(status: Status = Status.Open) {
         super();
-        this._entries = [];
-        this._open = !(!!noAutoOpen);
+        this.entries = [];
+        this.openStatus = status;
     }
 
     open() {
-        this._open = true;
+        this.openStatus = Status.Open;
     }
 
     close() {
-        this._open = false;
+        this.openStatus = Status.Close;
     }
 
     isOpened() {
-        return !!this._open;
+        return (this.openStatus === Status.Open);
     }
 
-    write() {
-        if(this.isOpened()){
-            const data = _.toArray(arguments);
-            this._entries.push(data);
-            const args = ['data'].concat(data);
-            this.emit(...args);
+    write(...args: any[]) {
+        if (this.isOpened()) {
+            this.entries.push(args);
+            this.emit('data', ...args);
         }
     }
 
-    read() {
-        if(this.isOpened){
-            const entry = this._entries.shift();
+    read(): Promise<any> {
+        if (this.isOpened) {
+            const entry = this.entries.shift();
             if (entry) {
                 return Promise.resolve(entry);
             }
             else {
-                const self = this;
-                const resolver = (resolve, reject) => {
-                    self.once('data', () => {
-                        const entry = self._entries.shift();
-                        resolve.apply(self, entry);
+                const resolver = (resolve: (a: any) => void) => {
+                    this.once('data', () => {
+                        const entry = this.entries.shift();
+                        resolve(entry);
                     });
                 };
                 return (new Promise(resolver));
             }
         }
-        // return Promise.reject('stream is closed');
+        return Promise.reject(new Error('stream is closed'));
     }
 
     readSync() {
-        if(this.isOpened()){
-            return this._entries.shift();
+        if (this.isOpened()) {
+            return this.entries.shift();
         }
+        return null;
     }
 
     dump() {
-        const entries = this._entries;
-        this._entries = [];
+        const entries = this.entries;
+        this.entries = [];
         return entries;
     }
 };

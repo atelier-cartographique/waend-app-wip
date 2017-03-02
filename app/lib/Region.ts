@@ -24,8 +24,6 @@ function compProjected(pt: number[], INC: number) {
 
 function maxVert() {
     let pt = [0, 0];
-    let r;
-    let ir;
     const INC = 0.1;
 
     let ret = 90;
@@ -64,8 +62,11 @@ class Region extends EventEmitter {
 
     pop() {
         const extent = this.state.pop();
-        this.emitChange(this.get());
-        return this.get();
+        if (extent) {
+            this.emitChange(extent);
+            return extent;
+        }
+        return null;
     }
 
     emitChange(extent: Extent) {

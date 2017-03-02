@@ -9,47 +9,46 @@
  */
 
 
-import _ from 'lodash';
-
-import Sockjs from 'sockjs-client';
+import * as _ from 'lodash';
+import * as SockJS from 'sockjs-client';
+import * as debug from 'debug';
 import semaphore from './Semaphore';
-import debug from 'debug';
 const logger = debug('waend:Sync');
 
-const pendings = [];
-let sock;
+let sock: WebSocket;
+const pendings: any[] = [];
 
-function sockOpen () {
+function sockOpen() {
     logger('sync opened', pendings.length);
+
     for (let i = 0; i < pendings.length; i++) {
         const msg = JSON.stringify(pendings[i]);
         sock.send(msg);
     }
 }
 
-function sockMessage (evt) {
+function sockMessage(evt: MessageEvent) {
     const data = evt.data || '[]';
     try {
         const args = JSON.parse(data);
+
         if (_.isArray(args) && (args.length > 1)) {
-            const syncArgs = ['sync'].concat(args);
-            semaphore.signal(...syncArgs);
+            semaphore.signal('sync', ...args);
         }
     }
     catch (err) {
-        console.error('sync.onmessage', err);
+        logger(`sync.onmessage ${err}`);
     }
 }
 
-function sockClose (exp) {
+function sockClose(exp: CloseEvent) {
     logger('sync closed', exp);
 }
 
 
 
-export function configure(config) {
-    sock = new Sockjs(config.url);
-
+export function configure(url: string) {
+    sock = <WebSocket>(new SockJS(url));
     sock.onopen = sockOpen;
     sock.onclose = sockClose;
     sock.onmessage = sockMessage;
@@ -60,9 +59,8 @@ export function configure(config) {
  * @method send
  * @return {bool} true if data has been sent, false if delayed or failed
  */
-export function send() {
-    const args = _.toArray(arguments);
-    if (!sock || (sock.readyState !== Sockjs.OPEN)) {
+export function send(...args: any[]) {
+    if (!sock || (sock.readyState !== SockJS.OPEN)) {
         pendings.push(args);
     }
     else {
@@ -83,6 +81,7 @@ export function send() {
  * @param  {string}  type A channel name, which is usually a context name
  * @param  {string}  id   context id
  */
-export function subscribe(type, id) {
+
+export function subscribe(type: string, id: string) {
     exports.send('sub', type, id);
 }

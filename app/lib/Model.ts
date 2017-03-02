@@ -18,7 +18,7 @@ const logger = debug('waend:Model');
 
 const binder = getBinder();
 
-function pathKey(objOpt: Object, pathOpt: string, def: any): any {
+function pathKey(objOpt: any, pathOpt: string, def: any): any {
     const path = pathOpt.split('.');
     let obj: any = objOpt;
     for (let i = 0, len = path.length; i < len; i++) {
@@ -177,7 +177,7 @@ export class Layer extends Model {
 
     getGroup() {
         const path = this.getPath();
-        return binder.getGroup(...path);
+        return binder.getGroup(path[0], path[1]);
     }
 
     isVisible() {

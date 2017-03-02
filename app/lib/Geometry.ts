@@ -23,9 +23,6 @@ interface IFeature {
 
 export type GeomOpt = Geometry | IFeature | JSONGeometry;
 
-const aa = <T>(a: T) => {
-    return a;
-};
 
 function geomToFeature<T extends JSONGeometry>(geom: T): GeoJSON.Feature<T> {
     return {

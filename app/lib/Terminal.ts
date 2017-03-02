@@ -1,15 +1,16 @@
-import EventEmitter from 'events';
+import { EventEmitter } from 'events';
 import Shell from '../lib/Shell';
 
 
 class Terminal extends EventEmitter {
+    protected shell: Shell;
 
     constructor() {
         super();
         this.shell = new Shell(this);
     }
 
-    get capabilities () {
+    get capabilities() {
         return {};
     }
 

@@ -15,22 +15,28 @@ import * as Promise from 'bluebird';
 import Shell from './Shell';
 import { ModelData } from './Model';
 import { get as getBinder } from './Bind';
+import { ICommand, ISys } from './waend';
 
 // import * as debug from 'debug';
 // const logger = debug('waend:Context');
 
 type IResolver<T> = (resolve: (a: T) => void, reject: (a: Error) => void) => void;
 
-class Context extends EventEmitter {
+export default class Context extends EventEmitter {
 
     public static binder = getBinder();
     public shell: Shell;
+
+    readonly name: string;
     readonly data: ModelData;
     readonly current: string[];
     readonly parent?: Context;
 
-    constructor(options: any) {
+    protected commands: ICommand[];
+
+    constructor(name: string, options: any) {
         super();
+        this.name = name;
         this.shell = options.shell;
         this.data = options.data;
         this.parent = options.parent;
@@ -45,39 +51,27 @@ class Context extends EventEmitter {
         this.current = computeCurrent(this, []);
     }
 
-    get baseCommands() {
-        const val = {};
-        for (let k in commands) {
-            const c = commands[k];
-            val[c.name] = c.command;
-        }
-        return val;
-    }
-
     /**
      *  this function executes a command in the scope of this context
      */
-    exec() {
-        const args = _.toArray(arguments);
-        const sys = args.shift();
-        const cmd = args.shift();
-        let method = null;
+    exec(sys: ISys, tokens: string[]): Promise<any> {
+        const cmd = tokens.shift();
+        if (cmd) {
+            const commands = this.commands;
+            const finder: (a: ICommand) => boolean =
+                (c) => c.name === cmd;
+            const com = commands.find(finder);
 
-        if (cmd in this.commands) {
-            method = this.commands[cmd];
+            if (com) {
+                return com.command.call(this, sys, ...tokens);
+            }
+            else if (this.parent) {
+                return this.parent.exec(sys, tokens);
+            }
+            return Promise.reject(
+                new Error(`command not found: ${cmd}`));
         }
-        else if (cmd in this.baseCommands) {
-            method = this.baseCommands[cmd];
-        }
-
-        if (method) {
-            this.sys = sys;
-            return method.call(this, ...args);
-        }
-        else if (this.parent) {
-            return this.parent.exec(...arguments);
-        }
-        throw (new Error(`command not found: ${cmd}`));
+        return Promise.reject(new Error(`null command`));
     }
 
     getUser() {
@@ -128,19 +122,3 @@ class Context extends EventEmitter {
 }
 
 
-export default Context;
-
-/*
-
-Argument of type 'IResolver<T>' 
-is not assignable to parameter of type:
-
-(resolve: (thenableOrResult?: T | Thenable<T> | undefined) => void, reject: (error?: any) => void...
-
-Types of parameters 'a' and 'resolve' are incompatible.
-
-(thenableOrResult?: T | Thenable<T> | undefined) => void
-
-is not assignable to type 'T'.
-
-*/

@@ -108,8 +108,13 @@ class DB extends EventEmitter {
 
         const resolver: (a: (b: Model) => void, b: (c: Error) => void) => void =
             (resolve, reject) => {
+                const options = {
+                    url: API_URL + path,
+                    body: model,
+                    parse: () => model,
+                };
                 self.transport
-                    .put(API_URL + path, { 'body': model })
+                    .put<Model>(options)
                     .then(() => {
                         db[model.id] = {
                             model: model,
@@ -232,7 +237,7 @@ class Bind extends EventEmitter {
 
     getMe() {
         const db = this.db;
-        const pr: IParser<User> =
+        const parse: IParser<User> =
             (response) => {
                 const u = new User(objectifyResponse(response));
                 db.record([u.id], u);
@@ -240,7 +245,7 @@ class Bind extends EventEmitter {
             };
 
         const url = `${API_URL}/auth`;
-        return this.transport.get(url, { parse: pr });
+        return this.transport.get<User>({ url, parse });
     }
 
     getComps(id: string) {
@@ -254,14 +259,14 @@ class Bind extends EventEmitter {
         if (db.has(userId)) {
             return Promise.resolve(db.get(userId));
         }
-        const pr: IParser<User> =
+        const parse: IParser<User> =
             (response) => {
                 const u = new User(objectifyResponse(response));
                 db.record([userId], u);
                 return u;
             };
         const url = API_URL + path;
-        return this.transport.get(url, { parse: pr });
+        return this.transport.get({ url, parse });
     }
 
     getGroup(userId: string, groupId: string) {
@@ -270,16 +275,24 @@ class Bind extends EventEmitter {
         if (db.has(groupId)) {
             return Promise.resolve(db.get(groupId));
         }
-        const pr: IParser<Group> =
+        const parse: IParser<Group> =
             (response) => {
                 const groupData = objectifyResponse(response);
-                const g = new Group(_.omit(groupData.group, 'layers'));
+                const modelData: ModelData = {
+                    id: groupData.group.id,
+                    properties: groupData.group.properties
+                };
+                const g = new Group(modelData);
                 const layers = groupData.group.layers;
 
                 db.record([userId, groupId], g);
 
                 for (const layer of layers) {
-                    const l = new Layer(_.omit(layer, 'features'));
+                    const layerData: ModelData = {
+                        id: layer.id,
+                        properties: layer.properties,
+                    };
+                    const l = new Layer(layerData);
                     db.record([userId, groupId, layer.id], l);
 
                     for (const feature of layer.features) {
@@ -296,7 +309,7 @@ class Bind extends EventEmitter {
             };
         const url = API_URL + path;
         semaphore.signal('start:loader', 'downloading map data');
-        return this.transport.get(url, { parse: pr });
+        return this.transport.get({ url, parse });
     }
 
 
@@ -305,7 +318,7 @@ class Bind extends EventEmitter {
         const path = `/user/${userId}/group/`;
         const gc = this._groupCache;
 
-        const pr: IParser<Array<Group>> =
+        const parse: IParser<Array<Group>> =
             (response) => {
                 const data = objectifyResponse(response);
 
@@ -330,7 +343,7 @@ class Bind extends EventEmitter {
                 return ret;
             };
         const url = API_URL + path;
-        return this.transport.get(url, { parse: pr });
+        return this.transport.get({ url, parse });
     }
 
     getLayer(userId: string, groupId: string, layerId: string) {
@@ -339,14 +352,14 @@ class Bind extends EventEmitter {
         if (db.has(layerId)) {
             return Promise.resolve(db.get(layerId));
         }
-        const pr: IParser<Layer> =
+        const parse: IParser<Layer> =
             (response) => {
                 const l = new Layer(objectifyResponse(response));
                 db.record([userId, groupId, layerId], l);
                 return l;
             };
         const url = API_URL + path;
-        return this.transport.get(url, { parse: pr });
+        return this.transport.get({ url, parse });
     }
 
     getLayers(_userId: string, groupId: string) {
@@ -359,14 +372,14 @@ class Bind extends EventEmitter {
         if (db.has(featureId)) {
             return Promise.resolve(db.get(featureId));
         }
-        const pr: IParser<Feature> =
+        const parse: IParser<Feature> =
             (response) => {
                 const f = new Feature(objectifyResponse(response));
                 db.record([userId, groupId, layerId, featureId], f);
                 return f;
             };
         const url = API_URL + path;
-        return this.transport.get(url, { parse: pr });
+        return this.transport.get({ url, parse });
     }
 
     delFeature(userId: string, groupId: string, layerId: string, featureId: string) {
@@ -379,12 +392,12 @@ class Bind extends EventEmitter {
         const db = this.db;
         const self = this;
 
-        const pr = () => {
+        const parse = () => {
             db.del(featureId);
             self.changeParent(layerId);
         };
 
-        return this.transport.del(url, { parse: pr });
+        return this.transport.del({ url, parse });
     }
 
     getFeatures(_userId: string, _groupId: string, layerId: string) {
@@ -398,7 +411,7 @@ class Bind extends EventEmitter {
         const binder = this;
         const path = `/user/${userId}/group/`;
 
-        const pr: IParser<Group> =
+        const parse: IParser<Group> =
             (response) => {
                 const g = new Group(objectifyResponse(response));
                 db.record([userId, g.id], g);
@@ -407,8 +420,9 @@ class Bind extends EventEmitter {
             };
 
         const url = API_URL + path;
-        return this.transport.post(url, {
-            parse: pr,
+        return this.transport.post({
+            url,
+            parse,
             body: data
         });
     }
@@ -418,7 +432,7 @@ class Bind extends EventEmitter {
         const binder = this;
         const path = `/user/${userId}/group/${groupId}/layer/`;
 
-        const pr: IParser<Layer> =
+        const parse: IParser<Layer> =
             (response) => {
                 const g = new Layer(objectifyResponse(response));
                 db.record([userId, groupId, g.id], g);
@@ -427,8 +441,9 @@ class Bind extends EventEmitter {
             };
 
         const url = API_URL + path;
-        return this.transport.post(url, {
-            parse: pr,
+        return this.transport.post({
+            url,
+            parse,
             body: data
         });
     }
@@ -438,7 +453,7 @@ class Bind extends EventEmitter {
         const binder = this;
         const path = `/user/${userId}/group/${groupId}/layer/${layerId}/feature/`;
 
-        const pr: IParser<Feature> =
+        const parse: IParser<Feature> =
             (response) => {
                 const f = new Feature(objectifyResponse(response));
                 db.record([userId, groupId, layerId, f.id], f);
@@ -449,8 +464,9 @@ class Bind extends EventEmitter {
             };
 
         const url = API_URL + path;
-        return this.transport.post(url, {
-            parse: pr,
+        return this.transport.post({
+            url,
+            parse,
             body: data
         });
     }
@@ -465,18 +481,20 @@ class Bind extends EventEmitter {
         };
 
         const url = API_URL + path;
-        return this.transport.post(url, {
-            'body': data
+        return this.transport.post({
+            url,
+            body: data,
+            parse: () => data,
         });
     }
 
     detachLayerFromGroup(userId: string, groupId: string, layerId: string) {
         const path = `/user/${userId}/group/${groupId}/detach/${layerId}`;
         const url = API_URL + path;
-        const pr = () => {
+        const parse = () => {
             this.changeParent(groupId);
         };
-        return this.transport.del(url, { parse: pr });
+        return this.transport.del({ url, parse });
     }
 
     matchKeyAsync(prefix: string) {

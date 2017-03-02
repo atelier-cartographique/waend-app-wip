@@ -1,38 +1,38 @@
-import EventEmitter from 'events';
-import _ from 'lodash';
-import Promise from 'bluebird';
-import url from 'url';
+import { EventEmitter } from 'events';
+import * as url from 'url';
+import * as _ from 'lodash';
+import * as Promise from 'bluebird';
+import * as debug from 'debug';
+import { User } from './Model';
 import Context from './Context';
-import User from './User';
-import Root from './Root';
-import Group from './Group';
-import Layer from './Layer';
-import Feature from './Feature';
-import {get as getBinder} from './Bind';
+import { get as getBinder } from './Bind';
 import Stream from './Stream';
 import region from './Region';
 import semaphore from './Semaphore';
-import debug from 'debug';
+import { ICommand, ISys } from './waend';
 const logger = debug('waend:Shell');
 
 
-const SHELL = 0;
-const USER = 1;
-const GROUP = 2;
-const LAYER = 3;
-const FEATURE = 4;
+enum ContextIndex {
+    SHELL = 0,
+    USER,
+    GROUP,
+    LAYER,
+    FEATURE,
+}
 
-const hasHistory = ((typeof window !== 'undefined') && window.history && window.history.pushState);
-const FRAGMENT_ROOT = ((typeof window !== 'undefined') && window.FRAGMENT_ROOT) ?
-                    window.FRAGMENT_ROOT :
-                    '/map/';
+type ContextOrNull = Context | null;
+
+// FIXME
+const FRAGMENT_ROOT: string | undefined = ((typeof window !== 'undefined')
+    && (window['FRAGMENT_ROOT']) ? window['FRAGMENT_ROOT'] : '/map/');
 
 
-function getCliChunk (chars, start, endChar) {
+function getCliChunk(chars, start, endChar) {
     let chunk = '';
     for (let i = start; i < chars.length; i++) {
         const c = chars[i];
-        if(endChar === c){
+        if (endChar === c) {
             break;
         }
         chunk += c;
@@ -40,7 +40,7 @@ function getCliChunk (chars, start, endChar) {
     return chunk;
 }
 
-function cliSplit (str) {
+function cliSplit(str: string) {
     const chars = str.trim().split('');
     const ret = [];
     for (let i = 0; i < chars.length; i++) {
@@ -83,29 +83,34 @@ function cliSplit (str) {
 //     logger('<'+str+'>', check, splitted.length, splitted);
 // }
 
-function getUrl () {
-    const purl = url.parse(window.location.href);
+interface IUrl extends url.Url {
+    fragment: string;
+    comps: string[];
+}
+
+function getUrl() {
+    const purl = <IUrl>url.parse(window.location.href);
     const queryString = purl.query;
 
     if (queryString) {
         purl.query = {};
         _.each(queryString.split('&'), pair => {
             const spair = pair.split('=');
-            purl.query[spair[0]] = window.decodeURIComponent(spair[1]);
+            purl.query[spair[0]] = decodeURIComponent(spair[1]);
         });
     }
 
     // backbone based
     const trailingSlash = /\/$/;
     const routeStripper = /^[#\/]|\s+$/g;
-    let fragment = purl.pathname;
-    const root = FRAGMENT_ROOT.replace(trailingSlash, '');
+    let fragment = purl.pathname || "";
+    const root = FRAGMENT_ROOT ? FRAGMENT_ROOT.replace(trailingSlash, '') : "";
     if (!fragment.indexOf(root)) {
         fragment = fragment.substr(root.length);
     }
     fragment.replace(routeStripper, '');
     let path = fragment.split('/');
-    while(path.length > 0 && 0 === path[0].length) {
+    while (path.length > 0 && 0 === path[0].length) {
         path = path.slice(1);
     }
     purl.fragment = fragment;
@@ -113,13 +118,6 @@ function getUrl () {
     return purl;
 }
 
-function ShellError () {
-    if(arguments.length > 0){
-        console.error(...arguments);
-    }
-}
-
-ShellError.prototype = Object.create(Error.prototype);
 
 const defaultDescriptor = {
     enumerable: false,
@@ -127,33 +125,44 @@ const defaultDescriptor = {
     // writable: false
 };
 
-class Shell extends EventEmitter {
+export class Shell extends EventEmitter {
 
-    constructor (terminal) {
+    private historyStarted: string[] | undefined;
+    private contexts: ContextOrNull[];
+    private commands: ICommand[][];
+    private currentContext: ContextIndex;
+    private stdin: Stream;
+    private stdout: Stream;
+    private stderr: Stream;
+    private env: any;
+    private postSwitchCallbacks: Array<(() => void)>
+    private user: User | null;
+
+    constructor() {
         super();
-        this.historyStarted = false;
-        this._contexts = new Array(5);
-        this._contexts[SHELL] = new Root({shell:this});
-        this._currentContext = SHELL;
+        this.contexts = new Array(5);
+        this.commands = new Array(5);
+        this.contexts[ContextIndex.SHELL] = new Context('root', { shell: this });
+        this.currentContext = ContextIndex.SHELL;
         this.initStreams();
 
-        this.env = {};
-        this.terminal = terminal;
+        this.env = {}; // ouch
 
-        semaphore.on('please:shell:context', this.switchContext.bind(this));
-        if (typeof window !== 'undefined') {
-            this.initHistory();
-        }
+        semaphore.on('please:shell:context',
+            this.switchContext.bind(this));
+
+    }
+
+    setCommands(contextId: ContextIndex, commands: ICommand[]) {
+        this.commands[contextId] = commands;
     }
 
 
     initHistory() {
-        if (hasHistory) {
-            const popStateCallback = function () {
-                this.historyPopContext(...arguments);
-            };
-            window.onpopstate = popStateCallback;
-        }
+
+        window.onpopstate = (event: PopStateEvent) => {
+            this.historyPopContext(event);
+        };
 
         const purl = getUrl();
         let startPath;
@@ -163,8 +172,8 @@ class Shell extends EventEmitter {
             if (purl.query && 'c' in purl.query) {
                 const command = purl.query.c;
                 const comps = purl.comps;
-                let pre;
-                if (comps.length === FEATURE) {
+                let pre: string | undefined;
+                if (comps.length === ContextIndex.FEATURE) {
                     pre = 'gg | region set';
                 }
                 after = () => {
@@ -174,7 +183,7 @@ class Shell extends EventEmitter {
                     this.exec(command);
                 };
             }
-            else if (purl.comps.length === FEATURE) {
+            else if (purl.comps.length === ContextIndex.FEATURE) {
                 after = () => {
                     this.exec('gg | region set');
                 };
@@ -185,28 +194,25 @@ class Shell extends EventEmitter {
         this.emit('history:start', startPath);
     }
 
-    historyPopContext(event) {
+    historyPopContext(event: PopStateEvent) {
         if (event.state) {
             this.switchContext(event.state);
         }
     }
 
-    historyPushContext(opt_path, opt_title) {
-        if (hasHistory) {
-            const trailingSlash = /\/$/;
-            const root = FRAGMENT_ROOT;
-            window.history.pushState(
-                opt_path,
-                opt_title || '',
-                root + opt_path.join('/')
-            );
-        }
+    historyPushContext(opt_path: string[], opt_title?: string) {
+        const root = FRAGMENT_ROOT || "";
+        window.history.pushState(
+            opt_path,
+            opt_title || '',
+            root + opt_path.join('/')
+        );
         return this.switchContext(opt_path);
     }
 
     initStreams() {
 
-        const streams = {
+        const streams: ISys = {
             stdin: new Stream(),
             stdout: new Stream(),
             stderr: new Stream()
@@ -229,21 +235,18 @@ class Shell extends EventEmitter {
                 return streams.stderr;
             },
         }, defaultDescriptor));
-
-        this._streams = streams;
-
     }
 
-    commandLineTokens(cl) {
+    commandLineTokens(cl: string) {
         return cliSplit(cl);
     }
 
 
-    makePipes(n) {
-        const pipes = [];
+    makePipes(n: number) {
+        const pipes: ISys[] = [];
 
         for (let i = 0; i < n; i++) {
-            const sys = {
+            const sys: ISys = {
                 'stdin': (new Stream()),
                 'stdout': (new Stream()),
                 'stderr': this.stderr
@@ -251,140 +254,139 @@ class Shell extends EventEmitter {
             pipes.push(sys);
         }
 
-        const concentrator = {
+        const concentrator: ISys = {
             'stdin': (new Stream()),
             'stdout': (new Stream()),
             'stderr': this.stderr
         };
 
-        pipes.push(concentrator);
+        const forward: (...a: any[]) => void =
+            (...args) => {
+                this.stdout.write(...args);
+            }
 
-        concentrator.stdin.on('data', function(){
-            this.stdout.write(...arguments);
-        }, this);
+        pipes.push(concentrator);
+        concentrator.stdin.on('data', forward);
 
         return pipes;
     }
 
-    execOne(cl) {
+    execOne(cl: string) {
         const toks = this.commandLineTokens(cl.trim());
-        const context = this._contexts[this._currentContext];
+        const context = this.contexts[this.currentContext];
+        if (context) {
+            try {
+                const sys: ISys = {
+                    'stdin': this.stdin,
+                    'stdout': this.stdout,
+                    'stderr': this.stderr
+                };
 
-        try {
-            const sys = {
-                'stdin': this.stdin,
-                'stdout': this.stdout,
-                'stderr': this.stderr
-            };
-            const args = [sys].concat(toks);
-            return context.exec(...args)
-                .then(result => {
-                    this.env.DELIVERED = result;
-                    return Promise.resolve(result);
-                });
+                return context.exec(sys, toks)
+                    .then(result => {
+                        this.env.DELIVERED = result;
+                        return Promise.resolve(result);
+                    });
+            }
+            catch (err) {
+                this.env.DELIVERED = err;
+                return Promise.reject(err);
+            }
         }
-        catch (err) {
-            this.env.DELIVERED = err;
-            return Promise.reject(err);
-        }
+        return Promise.reject(new Error('ContextFailed'));
     }
 
-    execMany(cls) {
-        const context = this._contexts[this._currentContext];
+    execMany(cls: string[]) {
+        const context = this.contexts[this.currentContext];
         const pipes = this.makePipes(cls.length);
 
-        const pipeStreams = (s, t) => {
+        if (context) {
 
-            s.stdout.on('data', function(){
-                t.stdin.write(...arguments);
-            });
+            const pipeStreams: (a: ISys, b: ISys) => void =
+                (left, right) => {
 
-            s.stdin.on('data', function(){
-                t.stdout.write(...arguments);
-            });
+                    left.stdout.on('data', (...args: any[]) => {
+                        right.stdin.write(...args);
+                    });
 
-            // var directions = [
-            //     ['stdout', 'stdin'],
-            // ];
+                    left.stdin.on('data', (...args: any[]) => {
+                        right.stdout.write(...args);
+                    });
+                };
 
-            // _.each(directions, function(stdnames){
-            //     var sourceStream = s[stdnames[0]],
-            //         targetStream = t[stdnames[1]];
-            //     sourceStream.on('data', function(){
-            //         targetStream.write.apply(targetStream, arguments);
-            //     });
-            // });
-        };
-
-        return Promise.reduce(cls, (total, item, index) => {
-            this.env.DELIVERED = total;
-            const cl = cls[index].trim();
-            const toks = this.commandLineTokens(cl);
-            const args = [pipes[index]].concat(toks);
-            // if(index > 0){
-            //     _.each(['stdin', 'stdout', 'stderr'], function(name){
-            //         pipes[index - 1][name].close();
-            //     });
-            // }
-            pipeStreams(pipes[index], pipes[index + 1]);
-            return context.exec(...args);
-        }, 0);
+            return Promise.reduce(cls, (total, _item, index) => {
+                this.env.DELIVERED = total;
+                const cl = cls[index].trim();
+                const toks = this.commandLineTokens(cl);
+                const sys = pipes[index];
+                const nextSys = pipes[index + 1];
+                pipeStreams(sys, nextSys);
+                return context.exec(sys, toks);
+            }, 0);
+        }
+        return Promise.reject(new Error('ContextFailed'));
     }
 
-    exec(cl) {
+    exec(cl: string) {
         const cls = cl.trim().split('|');
         // shall be called, but not doing it exposes weaknesses, which is good at this stage
         // this.stdin.dump();
         // this.stdout.dump();
         // this.stderr.dump();
         this.env.DELIVERED = null;
-        if(1 === cls.length){
+        if (1 === cls.length) {
             return this.execOne(cls[0]);
         }
         return this.execMany(cls);
     }
 
     clearContexts() {
-        const start = this._currentContext + 1;
+        const start = this.currentContext + 1;
         let i;
-        for(i = start; i < this._contexts.length; i++){
-            this._contexts[i] = null;
+        for (i = start; i < this.contexts.length; i++) {
+            this.contexts[i] = null;
         }
         const path = [];
-        for(i = 1; i < start; i++){
-            path.push(this._contexts[i].data.id);
+        for (i = 1; i < start; i++) {
+            const context = this.contexts[i];
+            if (!context) {
+                break;
+            }
+            path.push(context.data.id);
         }
         for (i = 0; i < this.postSwitchCallbacks.length; i++) {
             const cb = this.postSwitchCallbacks[i];
             cb();
         }
-        semaphore.signal('shell:change:context', this._currentContext, path);
+        semaphore.signal('shell:change:context', this.currentContext, path);
     }
 
-    switchContext(pathComps) {
+    switchContext(pathComps: string[]) {
         this.postSwitchCallbacks = [];
-        if(0 === pathComps.length){
-            this._currentContext = SHELL;
+        if (0 === pathComps.length) {
+            this.currentContext = ContextIndex.SHELL;
             this.clearContexts();
-            return Promise.resolve(0, 'shell');
+            return Promise.resolve(ContextIndex.SHELL);
         }
-        else if(1 === pathComps.length){
+        else if (1 === pathComps.length) {
             return this.loadUser(pathComps);
         }
-        else if(2 === pathComps.length){
+        else if (2 === pathComps.length) {
             return this.loadGroup(pathComps);
         }
-        else if(3 === pathComps.length){
+        else if (3 === pathComps.length) {
             return this.loadLayer(pathComps);
         }
-        else if(4 === pathComps.length){
+        else if (4 === pathComps.length) {
             return this.loadFeature(pathComps);
         }
+
+        return Promise.reject(new Error('FailedToSwitchContext'));
     }
 
-    getUserId(userName) {
-        if('me' === userName){
-            if(this.user){
+    getUserId(userName: string) {
+        if ('me' === userName) {
+            if (this.user) {
                 return this.user.id;
             }
             throw (new Error("you're not logged in"));
@@ -396,39 +398,38 @@ class Shell extends EventEmitter {
         return this.user;
     }
 
-    setUser(userId) {
-        const bind = getBinder();
-
-        const prm = bind.getUser(userId)
-            .then(userData => {
-                this._contexts[USER] = new User({
-                    shell:this,
-                    data:userData,
-                    parent:this._contexts[SHELL]
-                });
-                this._currentContext = USER;
-                this.clearContexts();
-                return Promise.resolve(this);
-            })
-            .catch(err => {
-                console.error('failed to switch context', err);
-            });
-
-        return prm;
+    setUser(userId: string) {
+        return (
+            getBinder()
+                .getUser(userId)
+                .then(userData => {
+                    this.contexts[ContextIndex.USER] = new User({
+                        shell: this,
+                        data: userData,
+                        parent: this.contexts[ContextIndex.SHELL]
+                    });
+                    this.currentContext = ContextIndex.USER;
+                    this.clearContexts();
+                    return Promise.resolve(this);
+                })
+                .catch(err => {
+                    console.error('failed to switch context', err);
+                })
+        );
     }
 
     setGroup(groupId) {
-        const user = this._contexts[USER].data;
+        const user = this.contexts[ContextIndex.USER].data;
         const bind = getBinder();
 
         const prm = bind.getGroup(user.id, groupId)
             .then(groupData => {
-                this._contexts[GROUP] = new Group({
-                    shell:this,
-                    data:groupData,
-                    parent:this._contexts[USER]
+                this.contexts[ContextIndex.GROUP] = new Group({
+                    shell: this,
+                    data: groupData,
+                    parent: this.contexts[ContextIndex.USER]
                 });
-                this._currentContext = GROUP;
+                this.currentContext = ContextIndex.GROUP;
                 if (this._previousGroup !== groupId) {
                     // here we check if a region set should happen
                     this._previousGroup = groupId;
@@ -453,18 +454,18 @@ class Shell extends EventEmitter {
     }
 
     setLayer(layerId) {
-        const user = this._contexts[USER].data;
-        const group = this._contexts[GROUP].data;
+        const user = this.contexts[ContextIndex.USER].data;
+        const group = this.contexts[ContextIndex.GROUP].data;
         const bind = getBinder();
 
         const prm = bind.getLayer(user.id, group.id, layerId)
             .then(layerData => {
-                this._contexts[LAYER] = new Layer({
-                    shell:this,
-                    data:layerData,
-                    parent:this._contexts[GROUP]
+                this.contexts[ContextIndex.LAYER] = new Layer({
+                    shell: this,
+                    data: layerData,
+                    parent: this.contexts[ContextIndex.GROUP]
                 });
-                this._currentContext = LAYER;
+                this.currentContext = ContextIndex.LAYER;
                 this.clearContexts();
                 return Promise.resolve(this);
             })
@@ -476,19 +477,19 @@ class Shell extends EventEmitter {
     }
 
     setFeature(featureId) {
-        const user = this._contexts[USER].data;
-        const group = this._contexts[GROUP].data;
-        const layer = this._contexts[LAYER].data;
+        const user = this.contexts[ContextIndex.USER].data;
+        const group = this.contexts[ContextIndex.GROUP].data;
+        const layer = this.contexts[ContextIndex.LAYER].data;
         const bind = getBinder();
 
         const prm = bind.getFeature(user.id, group.id, layer.id, featureId)
             .then(featureData => {
-                this._contexts[FEATURE] = new Feature({
-                    shell:this,
-                    data:featureData,
-                    parent:this._contexts[LAYER]
+                this.contexts[ContextIndex.FEATURE] = new Feature({
+                    shell: this,
+                    data: featureData,
+                    parent: this.contexts[ContextIndex.LAYER]
                 });
-                this._currentContext = FEATURE;
+                this.currentContext = ContextIndex.FEATURE;
                 this.clearContexts();
                 return Promise.resolve(this);
             })
@@ -499,7 +500,7 @@ class Shell extends EventEmitter {
         return prm;
     }
 
-    loadUser(path) {
+    loadUser(path: string[]) {
         //logger('shell.loadUser', path);
         try {
             const userName = this.getUserId(path[0]);
@@ -532,7 +533,7 @@ class Shell extends EventEmitter {
             .then(getLayer);
     }
 
-    loadFeature(path) {
+    loadFeature(path: string[]) {
         const userName = this.getUserId(path[0]);
         const groupName = path[1];
         const layerName = path[2];
@@ -547,7 +548,7 @@ class Shell extends EventEmitter {
             .then(getFeature);
     }
 
-    loginUser (u) {
+    loginUser(u: User) {
         this.user = u;
         semaphore.signal('user:login', u);
 
