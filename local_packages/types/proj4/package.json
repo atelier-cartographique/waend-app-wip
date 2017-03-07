@@ -1,0 +1,25 @@
+{
+  "author": {
+    "name": "Denis Carriere",
+    "email": "https://github.com/DenisCarriere"
+  },
+  "dependencies": {},
+  "description": "TypeScript definitions for proj4 2.3.15",
+  "devDependencies": {},
+  "directories": {},
+  "license": "MIT",
+  "main": "",
+  "maintainers": [
+    {
+      "name": "types",
+      "email": "ts-npm-types@microsoft.com"
+    }
+  ],
+  "name": "@types/proj4",
+  "optionalDependencies": {},
+  "peerDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "scripts": {},
+  "typings": "index.d.ts",
+  "version": "2.3.2"
+}
