@@ -5,6 +5,7 @@ import * as Promise from 'bluebird';
 import * as debug from 'debug';
 import { User } from './Model';
 import Context from './Context';
+import Env from './Env';
 import { get as getBinder } from './Bind';
 import Stream from './Stream';
 import region from './Region';
@@ -127,7 +128,6 @@ export class Shell extends EventEmitter {
     private stdin: Stream;
     private stdout: Stream;
     private stderr: Stream;
-    private env: any;
     private postSwitchCallbacks: Array<(() => void)>
     private user: User | null;
     private previousGroup: string;
@@ -139,8 +139,6 @@ export class Shell extends EventEmitter {
         this.contexts[ContextIndex.SHELL] = new Context('root', { shell: this });
         this.currentContext = ContextIndex.SHELL;
         this.initStreams();
-
-        this.env = {}; // ouch
 
         semaphore.on('please:shell:context',
             this.switchContext.bind(this));
@@ -278,12 +276,12 @@ export class Shell extends EventEmitter {
 
                 return context.exec(sys, toks)
                     .then(result => {
-                        this.env.DELIVERED = result;
+                        Env.set('DELIVERED', result);
                         return Promise.resolve(result);
                     });
             }
             catch (err) {
-                this.env.DELIVERED = err;
+                Env.set('DELIVERED', new Error(err));
                 return Promise.reject(err);
             }
         }
@@ -309,7 +307,7 @@ export class Shell extends EventEmitter {
                 };
 
             return Promise.reduce(cls, (total, _item, index) => {
-                this.env.DELIVERED = total;
+                Env.set('DELIVERED', total);
                 const cl = cls[index].trim();
                 const toks = this.commandLineTokens(cl);
                 const sys = pipes[index];
@@ -327,7 +325,7 @@ export class Shell extends EventEmitter {
         // this.stdin.dump();
         // this.stdout.dump();
         // this.stderr.dump();
-        this.env.DELIVERED = null;
+        Env.set('DELIVERED', null);
         if (1 === cls.length) {
             return this.execOne(cls[0]);
         }

@@ -10,13 +10,7 @@ class Terminal extends EventEmitter {
         this.shell = new Shell();
     }
 
-    get capabilities() {
-        return {};
-    }
-
     start() { throw (new Error('Not Implemented')); }
-    makeCommand() { throw (new Error('Not Implemented')); }
-    setTitle() { throw (new Error('Not Implemented')); }
 
 };
 

@@ -42,8 +42,8 @@ export default class View {
     private extent: Extent;
     private sources: Source[];
     private map: WaendMap;
-    private navigator: Navigator;
     private root: Element;
+    readonly navigator: Navigator;
     readonly transform: Transform;
     size: { width: number; height: number; };
 

@@ -10,15 +10,18 @@
 
 import { EventEmitter } from 'events';
 import * as Promise from 'bluebird';
-import * as _ from 'lodash';
+import { SpanPack } from "./waend";
+
 
 enum Status {
     Open,
     Close
 }
 
-class Stream extends EventEmitter {
-    private entries: any[];
+
+
+export default class Stream extends EventEmitter {
+    private entries: SpanPack[];
     private openStatus: Status;
 
     constructor(status: Status = Status.Open) {
@@ -39,26 +42,28 @@ class Stream extends EventEmitter {
         return (this.openStatus === Status.Open);
     }
 
-    write(...args: any[]) {
+    write(pack: SpanPack) {
         if (this.isOpened()) {
-            this.entries.push(args);
-            this.emit('data', ...args);
+            this.entries.push(pack);
+            this.emit('data', pack);
         }
     }
 
-    read(): Promise<any> {
+    read(): Promise<SpanPack> {
         if (this.isOpened) {
             const entry = this.entries.shift();
             if (entry) {
                 return Promise.resolve(entry);
             }
             else {
-                const resolver = (resolve: (a: any) => void) => {
-                    this.once('data', () => {
-                        const entry = this.entries.shift();
-                        resolve(entry);
-                    });
-                };
+                const resolver: (a: (b: SpanPack) => void) => void =
+                    (resolve) => {
+                        this.once('data',
+                            (entry: SpanPack) => {
+                                resolve(entry);
+                                this.entries.shift();
+                            });
+                    };
                 return (new Promise(resolver));
             }
         }
@@ -79,4 +84,3 @@ class Stream extends EventEmitter {
     }
 };
 
-export default Stream;

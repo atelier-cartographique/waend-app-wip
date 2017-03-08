@@ -265,7 +265,7 @@ class Navigator {
     canvas: HTMLCanvasElement;
     context: CanvasRenderingContext2D;
 
-    private events = [
+    readonly events = [
         'click', 'dblclick',
         'mousedown', 'mousemove', 'mouseup',
         'keypress', 'keydown', 'keyup',

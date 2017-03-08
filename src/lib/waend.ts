@@ -10,6 +10,15 @@ export enum ContextIndex {
     FEATURE,
 }
 
+export interface Span {
+    text: string;
+    fragment?: Element;
+    commands?: string[];
+}
+
+export type SpanPack = Span[];
+export type PackPage = SpanPack[];
+
 export interface ICommand {
     name: string;
     command: <T>(ctx: Context, args: string[]) => Promise<T>;

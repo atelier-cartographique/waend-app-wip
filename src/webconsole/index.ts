@@ -11,7 +11,6 @@
 
 
 import config from '../config';
-import * as debug from 'debug';
 import { get as getBinder } from '../lib/Bind';
 import { configure as configureSync } from '../lib/Sync';
 import semaphore from '../lib/Semaphore';
@@ -22,38 +21,40 @@ import WMap from './WaendMap';
 import { configure as configureModels } from '../lib/Model';
 import { configurator } from './ModelConfig';
 import { IEventChangeContext, ContextIndex } from "../lib/waend";
+import Env from '../lib/Env';
 
 
-debug.save('waend:*');
 configureModels(configurator);
 
 
 function init() {
     const elementWC = document.querySelector('#wc');
     const elementMap = document.querySelector('#map');
-    const wc = new WebConsole(elementWC, elementMap);
-    const layer = new LayerProvider();
-    const source = new SourceProvider();
-    const wmap = new WMap({ 'root': elementMap });
+    if (elementWC && elementMap) {
+        const wc = new WebConsole(elementWC, elementMap);
+        const layer = new LayerProvider();
+        const source = new SourceProvider();
+        const wmap = new WMap({ 'root': elementMap });
 
-    wc.shell.env.map = wmap; // there might be a better way, but we want this result.
-    wc.start();
+        Env.set('map', wmap);
+        wc.start();
 
-    if (window.waendUser) {
-        getBinder()
-            .getMe()
-            .then(user => {
-                wc.shell.loginUser(user);
+        if (window.waendUser) {
+            getBinder()
+                .getMe()
+                .then(user => {
+                    wc.shell.loginUser(user);
+                });
+        }
+        else {
+            semaphore.signal<IEventChangeContext>('shell:change:context', {
+                index: ContextIndex.SHELL,
+                path: [],
             });
-    }
-    else {
-        semaphore.signal<IEventChangeContext>('shell:change:context', {
-            index: ContextIndex.SHELL,
-            path: [],
-        });
-    }
+        }
 
-    configureSync(config.notify);
+        configureSync(config.notify);
+    }
 }
 
 document.onreadystatechange = () => {

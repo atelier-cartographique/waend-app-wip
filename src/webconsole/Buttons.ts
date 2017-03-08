@@ -10,165 +10,203 @@
 
 import semaphore from '../lib/Semaphore';
 
-function loginButton(console, button) {
-    let isLogged = false;
-    button.setAttribute('class', 'wc-button icon-login');
-    button.innerHTML = 'Login';
+type CmdFn = (a: Element) => void;
 
-    button.addEventListener('click', () => {
-        if (!isLogged) {
-            console.runCommand('login');
-        }
-        else {
-            console.runCommand('logout');
-        }
-    });
-
-    semaphore.on('user:login', () => {
-        isLogged = true;
-        button.innerHTML = 'Logout';
-    });
-    semaphore.on('user:logout', () => {
-        isLogged = false;
-        button.innerHTML = 'Login';
-    });
+export interface Button {
+    label: string;
+    type: 'display' | 'shell' | 'embed' | 'function';
+    command?: string[];
+    fn?: CmdFn;
 }
 
-const shellButtons = {
-    'Help': {
+export type ButtonGroup = Array<Button>;
+
+
+
+
+const loginButton: CmdFn =
+    (button) => {
+        let isLogged = false;
+        button.setAttribute('class', 'wc-button icon-login');
+        button.innerHTML = 'Login';
+
+        button.addEventListener('click', () => {
+            if (!isLogged) {
+                semaphore.signal('command:run', 'login');
+            }
+            else {
+                semaphore.signal('command:run', 'logout');
+            }
+        });
+
+        semaphore.on('user:login', () => {
+            isLogged = true;
+            button.innerHTML = 'Logout';
+        });
+        semaphore.on('user:logout', () => {
+            isLogged = false;
+            button.innerHTML = 'Login';
+        });
+    }
+
+
+const shellButtons: ButtonGroup = [
+    {
+        label: 'Help',
         type: 'display',
         command: ['help']
     },
-    'Login': {
+    {
+        label: 'Login',
         type: 'function',
-        command: loginButton
+        fn: loginButton
     },
-    'About': {
+    {
+        label: 'About',
         type: 'shell',
         command: ['cc /2232525b-a8cb-4579-af24-2b5629ba43b5/3a7f695b-cd37-43f4-9a7a-efb1e422aef8', 'view'],
     },
-};
+];
 
 
-const userButtons = {
-    'My profile': {
+const userButtons: ButtonGroup = [
+    {
+        label: 'My profile',
         type: 'embed',
         command: ['cc /me', 'get']
     },
-    'Add map': {
+    {
+        label: 'Add map',
         type: 'display',
         command: ['mkgroup']
     },
-    'List maps': {
+    {
+        label: 'List maps',
         type: 'embed',
         command: ['lg']
     },
-    'Upload image': {
+    {
+        label: 'Upload image',
         type: 'display',
         command: ['media upload']
     },
-    'Browse images': {
+    {
+        label: 'Browse images',
         type: 'embed',
         command: ['media list']
     }
-};
+];
 
-const groupButtons = {
-    'Add layer': {
+const groupButtons: ButtonGroup = [
+    {
+        label: 'Add layer',
         type: 'display',
         command: ['mklayer']
     },
-    'List layers': {
+    {
+        label: 'List layers',
         type: 'embed',
         command: ['ll']
     },
-    'Show - Hide layers': {
+    {
+        label: 'Show - Hide layers',
         type: 'display',
         command: ['visible']
     },
-    // 'Re-order layers': {
-    //     type: 'display',
-    //     command: ['visible | edit | set visible']
-    // },
-    'Set map extent': {
+    {
+        label: 'Set map extent',
         type: 'shell',
         command: ['region get | set extent']
     },
-    'Select Features': {
+    {
+        label: 'Select Features',
         type: 'display',
         command: ['select']
     },
-
-    'View mode': {
+    {
+        label: 'View mode',
         type: 'shell',
         command: ['view']
     }
+];
 
-};
 
-
-const layerButtons = {
-    'Style layer': {
+const layerButtons: ButtonGroup = [
+    {
+        label: 'Style layer',
         type: 'embed',
         command: ['sl']
     },
-    'Trace': {
+    {
+        label: 'Trace',
         type: 'display',
         command: ['trace | create | cc']
     },
-    'Draw line': {
+    {
+        label: 'Draw line',
         type: 'display',
         command: ['draw | create | cc']
     },
-    'Draw zone': {
+    {
+        label: 'Draw zone',
         type: 'display',
         command: ['draw | close | create | cc']
     },
-    'Import geo-datas': {
+    {
+        label: 'Import geo-datas',
         type: 'display',
         command: ['import', 'lf']
     },
-    'List features': {
+    {
+        label: 'List features',
         type: 'embed',
         command: ['lf']
     }
-};
+];
 
-const featureButtons = {
-    'Style feature': {
+const featureButtons: ButtonGroup = [
+    {
+        label: 'Style feature',
         type: 'embed',
         command: ['sf']
     },
-    'Set name': {
+    {
+        label: 'Set name',
         type: 'display',
         command: ['get name | edit | set name']
     },
-    'Set image': {
+    {
+        label: 'Set image',
         type: 'display',
         command: ['media pick | set params.image']
     },
-    'Set text': {
+    {
+        label: 'Set text',
         type: 'display',
         command: ['del params.image', 'get params.text | edit | set params.text']
     },
-    'Edit shape': {
+    {
+        label: 'Edit shape',
         type: 'display',
         command: ['gg | trace | sg']
     },
-    'Duplicate shape': {
+    {
+        label: 'Duplicate shape',
         type: 'shell',
         command: ['gg | create | cc']
     },
-    'Zoom to feature': {
+    {
+        label: 'Zoom to feature',
         type: 'shell',
         command: ['gg | region set']
     },
-    'Delete feature': {
+    {
+        label: 'Delete feature',
         type: 'shell',
         command: ['del_feature', 'lf']
     }
 
-};
+];
 
 
 export default {
