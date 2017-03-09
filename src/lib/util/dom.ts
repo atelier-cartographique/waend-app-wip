@@ -1,4 +1,6 @@
 import * as _ from 'lodash';
+import { Model } from "../Model";
+import { getModelName } from "./index";
 
 
 // events
@@ -265,4 +267,34 @@ export function eventPreventer(elem: Element, events: string[]) {
             e.stopPropagation();
         }, false);
     });
+}
+
+
+export function getDomForModel(model: Model, key: string, tagName = 'div', className: string) {
+    const element = document.createElement(tagName);
+    addClass(element, `model-fragment ${className}`);
+
+    const getValue = (key: string) => {
+        if ('name' === key) {
+            return getModelName(model);
+        }
+        return JSON.stringify(model.get(key, 'nn'));
+    };
+
+    appendText(getValue(key))(element);
+
+    const updater = (changedKey: string) => {
+        if (element && (key === changedKey)) {
+            emptyElement(element);
+            appendText(getValue(key))(element);
+        }
+    };
+
+    model.on('set', updater);
+
+    element.addEventListener('remove', () => {
+        model.removeAllListeners('set');
+    }, false);
+
+    return element;
 }

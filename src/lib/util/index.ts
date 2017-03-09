@@ -12,7 +12,7 @@ import { CoordPolygon, CoordLinestring } from "../waend";
 export function getModelName(model: Model) {
     const name = model.get('name', null);
     if (name) {
-        return name;
+        return JSON.stringify(name);
     }
     return `•${model.id.substr(0, 6)}`;
 }

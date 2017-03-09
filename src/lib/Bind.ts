@@ -179,16 +179,16 @@ function objectifyResponse(response: any) {
 
 class Bind extends EventEmitter {
     private transport: Transport;
-    private db: DB;
     private featurePages: any;
-    private _groupCache: any;
+    private groupCache: any;
+    db: DB;
 
     constructor() {
         super();
         this.transport = new Transport();
         this.db = new DB(this.transport);
         this.featurePages = {};
-        this._groupCache = {};
+        this.groupCache = {};
 
         semaphore.observe<ISyncMessage>('sync',
             (message) => {
@@ -321,7 +321,7 @@ class Bind extends EventEmitter {
     getGroups(userId: string) {
         const db = this.db;
         const path = `/user/${userId}/group/`;
-        const gc = this._groupCache;
+        const gc = this.groupCache;
 
         const parse: IParser<Array<Group>> =
             (response) => {

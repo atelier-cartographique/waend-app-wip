@@ -1,8 +1,25 @@
 
 
-import { Button, ButtonGroup } from './Buttons';
-import { addClass, DIV } from "../lib/util/dom";
+import buttonGroups, { Button, ButtonGroup } from './Buttons';
+import { addClass, DIV, emptyElement, getDomForModel, removeClass } from "../lib/util/dom";
 import semaphore from '../lib/Semaphore';
+import { IEventChangeContext } from "../lib/waend";
+import { get as getBinder } from '../lib/Bind';
+
+export interface SidebarOptions {
+    className: string;
+}
+
+type TitleFn = (a: Element) => void;
+
+interface IGroup {
+    node: Element;
+    setTitle: TitleFn;
+}
+
+interface ISidebar {
+    node: Element;
+}
 
 const commandHandler: (a: string[]) => (c: Event) => void =
     (commands) => (event) => {
@@ -62,18 +79,84 @@ const makeButton: (a: Button) => Element =
     }
 
 
-export const makeGroup: (a: string, b: ButtonGroup) => Element =
+const makeGroup: (a: string, b: ButtonGroup) => IGroup =
     (label, group) => {
-        const element = DIV();
-        addClass(element, `wc-group-${label}`);
-        return (
-            group
-                .map(makeButton)
-                .reduce((elem, button) => {
-                    elem.appendChild(button);
-                    return elem;
-                }, element)
+        const node = DIV();
+        const title = DIV();
 
-        );
+        addClass(node, `wc-group-${label}`);
+        addClass(title, 'wc-group-title');
+
+        group
+            .map(makeButton)
+            .reduce((elem, button) => {
+                elem.appendChild(button);
+                return elem;
+            }, node);
+
+        const setTitle: TitleFn =
+            (elem) => {
+                emptyElement(title);
+                title.appendChild(elem);
+            }
+
+        return { node, setTitle };
     }
 
+
+const makeContextLink: (a: number, b: string[]) => Element =
+    (pidx, path) => {
+        const id = path[pidx];
+        const db = getBinder().db;
+        const model = db.get(id);
+        const fragment = getDomForModel(model, 'name', 'a', '');
+        const ccCmd = `cc /${path.slice(0, pidx + 1).join('/')}`;
+
+        fragment.addEventListener('click', () => {
+            semaphore.signal('command:run', ccCmd);
+        }, false);
+
+        return fragment;
+    };
+
+
+const listenContext: (a: IGroup[]) => void =
+    (groups) => {
+        semaphore.observe<IEventChangeContext>('shell:change:context',
+            (event) => {
+                const { index, path } = event;
+
+                for (let gi = 0; gi < (index + 1); gi++) {
+                    const group = groups[gi];
+                    addClass(group.node, 'wc-active');
+                    removeClass(group.node, 'wc-current');
+
+                    if (gi === index) {
+                        addClass(group.node, 'wc-current');
+                    }
+
+                    if (gi > 0) {
+                        group.setTitle(makeContextLink(gi - 1, path));
+                    }
+                }
+            });
+    };
+
+
+export const Sidebar: (a: SidebarOptions) => ISidebar =
+    (options) => {
+        const node = DIV();
+        addClass(node, options.className);
+
+        const shell = makeGroup('shell', buttonGroups.shell);
+        const user = makeGroup('user', buttonGroups.user);
+        const group = makeGroup('group', buttonGroups.group);
+        const layer = makeGroup('layer', buttonGroups.layer);
+        const feature = makeGroup('feature', buttonGroups.feature);
+
+        const groups = [shell, user, group, layer, feature];
+        groups.forEach((g) => { node.appendChild(g.node); });
+        listenContext(groups);
+
+        return { node };
+    }

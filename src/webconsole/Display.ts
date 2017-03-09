@@ -4,14 +4,14 @@ import { uniqueId } from 'lodash';
 import { addClass, DIV, removeElement } from "../lib/util/dom";
 
 
-export interface IScreen {
-    node: Element;
+export interface IDisplay {
+    node: HTMLElement;
     shutdown: () => void;
 }
 
-export type EndFn = (a: Element) => Promise<void>;
+export type EndFn = (a: HTMLElement) => Promise<void>;
 
-export const Screen: (a: EndFn) => IScreen =
+export const Display: (a: EndFn) => IDisplay =
     (onShutdown) => {
         const id = uniqueId('wc-display-');
         const node = DIV();

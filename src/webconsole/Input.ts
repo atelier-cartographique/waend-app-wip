@@ -1,10 +1,16 @@
 
 import semaphore from '../lib/Semaphore';
 import { History, IHistory } from './History';
-import { isKeyCode, KeyCode, addClass, INPUT, DIV } from "../lib/util/dom";
+import { isKeyCode, KeyCode, addClass, INPUT, DIV, removeClass } from "../lib/util/dom";
 
 export interface InputOptions {
     className: string;
+}
+
+interface IInput {
+    node: Element;
+    enable: () => void;
+    disable: () => void;
 }
 
 const isKeyEnter = isKeyCode(KeyCode.ENTER);
@@ -34,27 +40,39 @@ const eventHandler: (a: HTMLInputElement, b: IHistory) => (c: KeyboardEvent) => 
 
 
 
-export const Input: (a: InputOptions) => Element =
+export const Input: (a: InputOptions) => IInput =
     (options) => {
         const history = History();
-        const input = INPUT();
+        const node = INPUT();
         const inputField = INPUT();
         const inputPrompt = DIV();
         const inputBottomline = DIV();
 
-        addClass(input, options.className);
+        addClass(node, options.className);
         addClass(inputField, 'wc-input');
         addClass(inputPrompt, 'wc-input-prompt');
         addClass(inputBottomline, 'wc-input-bottom-line');
 
         inputField.setAttribute('type', 'text');
         inputField.addEventListener('keyup',
-            eventHandler(input, history), false);
+            eventHandler(node, history), false);
 
         inputPrompt.appendChild(document.createTextNode('>'));
-        input.appendChild(inputPrompt);
-        input.appendChild(inputField);
-        input.appendChild(inputBottomline);
+        node.appendChild(inputPrompt);
+        node.appendChild(inputField);
+        node.appendChild(inputBottomline);
 
-        return input;
+        const enable =
+            () => {
+                inputField.disabled = false;
+                removeClass(node, 'wc-disabled');
+            }
+
+        const disable =
+            () => {
+                inputField.disabled = true;
+                addClass(node, 'wc-disabled');
+            }
+
+        return { node, enable, disable };
     };

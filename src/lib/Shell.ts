@@ -121,13 +121,13 @@ const defaultDescriptor = {
 
 export class Shell extends EventEmitter {
 
+    stdin: Stream;
+    stdout: Stream;
+    stderr: Stream;
     private historyStarted: string[] | undefined;
     private contexts: ContextOrNull[];
     private commands: ICommand[][];
     private currentContext: ContextIndex;
-    private stdin: Stream;
-    private stdout: Stream;
-    private stderr: Stream;
     private postSwitchCallbacks: Array<(() => void)>
     private user: User | null;
     private previousGroup: string;
