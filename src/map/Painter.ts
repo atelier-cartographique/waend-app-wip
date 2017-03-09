@@ -15,6 +15,7 @@ import ImageLoader from './Image';
 import View, { Context } from './View';
 import Transform from '../lib/Transform';
 import { CoordLinestring, CoordPolygon, ContextValue, PolygonEnds, DrawingInstruction, PainterCommand, ImageOptions } from '../lib/waend';
+import { CANVAS } from "../lib/util/dom";
 
 
 interface TextureRecord {
@@ -175,7 +176,7 @@ class Painter {
     }
 
     startTexture(tid: string) {
-        const canvas = document.createElement('canvas');
+        const canvas = CANVAS();
         canvas.width = this.context.canvas.width;
         canvas.height = this.context.canvas.height;
         const ctx = <Context>canvas.getContext('2d');

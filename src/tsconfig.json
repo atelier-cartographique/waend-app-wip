@@ -1,7 +1,7 @@
 {
     "compilerOptions": {
-        "project": "src",
-        "outDir": "js",
+        "project": "./",
+        "outDir": "../js",
         "module": "commonjs",
         "moduleResolution": "node",
         "target": "es6",
@@ -15,5 +15,11 @@
         "strictNullChecks": true,
         "removeComments": true,
         "sourceMap": false
-    }
+    },
+    "exclude": [
+        "commands",
+        "render0",
+        "embed",
+        "view"
+    ]
 }

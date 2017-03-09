@@ -12,16 +12,11 @@
 
 import config from '../config';
 import { get as getBinder } from '../lib/Bind';
-import { configure as configureSync } from '../lib/Sync';
-import semaphore from '../lib/Semaphore';
-import WebConsole from './WebConsole';
-import LayerProvider from './LayerProvider';
-import SourceProvider from './SourceProvider';
-import WMap from './WaendMap';
-import { configure as configureModels } from '../lib/Model';
-import { configurator } from './ModelConfig';
-import { IEventChangeContext, ContextIndex } from "../lib/waend";
+import { configure as initSync } from '../lib/Sync';
+import { Console } from './Console';
+import map from '../map';
 import Env from '../lib/Env';
+import { initHistory } from "./WebHistory";
 
 
 
@@ -29,29 +24,28 @@ function init() {
     const elementWC = document.querySelector('#wc');
     const elementMap = document.querySelector('#map');
     if (elementWC && elementMap) {
-        const wc = new WebConsole(elementWC, elementMap);
-        const layer = new LayerProvider();
-        const source = new SourceProvider();
-        const wmap = new WMap({ 'root': elementMap });
+        const wcons = Console();
+        const wmap = map(elementMap);
 
         Env.set('map', wmap);
-        wc.start();
 
-        if (window.waendUser) {
-            getBinder()
-                .getMe()
-                .then(user => {
-                    wc.shell.loginUser(user);
-                });
-        }
-        else {
-            semaphore.signal<IEventChangeContext>('shell:change:context', {
-                index: ContextIndex.SHELL,
-                path: [],
-            });
-        }
+        const shell = wcons.start();
 
-        configureSync(config.notify);
+        const historyPopContext: (a: PopStateEvent) => void =
+            (event) => {
+                if (event.state) {
+                    shell.switchContext(event.state);
+                }
+            };
+
+        getBinder()
+            .getMe()
+            .then(user => { shell.loginUser(user); })
+            .catch(() => 0);
+
+
+        initSync(config.notifyUrl);
+        shell.switchContext(initHistory('/map/', historyPopContext));
     }
 }
 

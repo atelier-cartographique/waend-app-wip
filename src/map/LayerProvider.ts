@@ -37,4 +37,12 @@ class LayerProvider extends EventEmitter {
 };
 
 
-export default LayerProvider;
+let provider: LayerProvider;
+
+export default function (): LayerProvider {
+    if (!provider) {
+        provider = new LayerProvider();
+    }
+    return provider;
+};
+

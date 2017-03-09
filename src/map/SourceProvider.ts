@@ -99,4 +99,11 @@ class SourceProvider {
     }
 }
 
-export default SourceProvider;
+let provider: SourceProvider;
+
+export default function (): SourceProvider {
+    if (!provider) {
+        provider = new SourceProvider();
+    }
+    return provider;
+};

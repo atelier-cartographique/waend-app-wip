@@ -1,4 +1,4 @@
-import { last, isArray } from 'lodash';
+import { last } from 'lodash';
 import * as EventEmitter from 'events';
 import semaphore from '../lib/Semaphore';
 import { Extent, Geometry } from './Geometry';
@@ -68,7 +68,7 @@ class Region extends EventEmitter {
     }
 
     emitChange(extent: Extent) {
-        semaphore.signal('region:change', extent, this);
+        semaphore.signal('region:change', extent);
     }
 
     pushExtent(extent: Extent) {
@@ -84,7 +84,7 @@ class Region extends EventEmitter {
         else if (e instanceof Geometry) {
             extent = e.getExtent();
         }
-        else if (isArray(e)) { // we assume ol.extent type
+        else if (Array.isArray(e)) { // we assume ol.extent type
             extent = new Extent(e);
         }
         else {

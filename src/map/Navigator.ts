@@ -14,7 +14,7 @@ import Geometry, { Extent } from '../lib/Geometry';
 import Transform from '../lib/Transform';
 import region from '../lib/Region';
 import semaphore from '../lib/Semaphore';
-import * as turf from 'turf';
+import * as turf from '@turf/turf';
 import * as debug from 'debug';
 import View from "./View";
 import WaendMap from "./WaendMap";

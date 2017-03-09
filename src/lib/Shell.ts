@@ -1,5 +1,4 @@
 import { EventEmitter } from 'events';
-import * as url from 'url';
 import * as _ from 'lodash';
 import * as Promise from 'bluebird';
 import * as debug from 'debug';
@@ -10,17 +9,12 @@ import { get as getBinder } from './Bind';
 import Stream from './Stream';
 import region from './Region';
 import semaphore from './Semaphore';
-import { ICommand, ISys, IEventChangeContext, ContextIndex } from './waend';
+import { ICommand, ISys, IEventChangeContext, ContextIndex, SpanPack } from './waend';
 const logger = debug('waend:Shell');
 
 
 
 type ContextOrNull = Context | null;
-
-// FIXME
-const FRAGMENT_ROOT: string | undefined = ((typeof window !== 'undefined')
-    && (window['FRAGMENT_ROOT']) ? window['FRAGMENT_ROOT'] : '/map/');
-
 
 function getCliChunk(chars: string[], start: number, endChar: string) {
     let chunk = '';
@@ -77,41 +71,6 @@ function cliSplit(str: string) {
 //     logger('<'+str+'>', check, splitted.length, splitted);
 // }
 
-interface IUrl extends url.Url {
-    fragment: string;
-    comps: string[];
-}
-
-function getUrl() {
-    const purl = <IUrl>url.parse(window.location.href);
-    const queryString = purl.query;
-
-    if (queryString) {
-        purl.query = {};
-        _.each(queryString.split('&'), pair => {
-            const spair = pair.split('=');
-            purl.query[spair[0]] = decodeURIComponent(spair[1]);
-        });
-    }
-
-    // backbone based
-    const trailingSlash = /\/$/;
-    const routeStripper = /^[#\/]|\s+$/g;
-    let fragment = purl.pathname || "";
-    const root = FRAGMENT_ROOT ? FRAGMENT_ROOT.replace(trailingSlash, '') : "";
-    if (!fragment.indexOf(root)) {
-        fragment = fragment.substr(root.length);
-    }
-    fragment.replace(routeStripper, '');
-    let path = fragment.split('/');
-    while (path.length > 0 && 0 === path[0].length) {
-        path = path.slice(1);
-    }
-    purl.fragment = fragment;
-    purl.comps = path;
-    return purl;
-}
-
 
 const defaultDescriptor = {
     enumerable: false,
@@ -124,7 +83,6 @@ export class Shell extends EventEmitter {
     stdin: Stream;
     stdout: Stream;
     stderr: Stream;
-    private historyStarted: string[] | undefined;
     private contexts: ContextOrNull[];
     private commands: ICommand[][];
     private currentContext: ContextIndex;
@@ -150,57 +108,6 @@ export class Shell extends EventEmitter {
     }
 
 
-    initHistory() {
-
-        window.onpopstate = (event: PopStateEvent) => {
-            this.historyPopContext(event);
-        };
-
-        const purl = getUrl();
-        let startPath;
-        if ((purl.fragment.length > 0) && (purl.comps.length > 0)) {
-            let after = _.noop;
-            startPath = purl.comps;
-            if (purl.query && 'c' in purl.query) {
-                const command = purl.query.c;
-                const comps = purl.comps;
-                let pre: string | undefined;
-                if (comps.length === ContextIndex.FEATURE) {
-                    pre = 'gg | region set';
-                }
-                after = () => {
-                    if (pre) {
-                        this.exec(pre);
-                    }
-                    this.exec(command);
-                };
-            }
-            else if (purl.comps.length === ContextIndex.FEATURE) {
-                after = () => {
-                    this.exec('gg | region set');
-                };
-            }
-            this.historyPushContext(purl.comps).then(after);
-        }
-        this.historyStarted = startPath;
-        this.emit('history:start', startPath);
-    }
-
-    historyPopContext(event: PopStateEvent) {
-        if (event.state) {
-            this.switchContext(event.state);
-        }
-    }
-
-    historyPushContext(opt_path: string[], opt_title?: string) {
-        const root = FRAGMENT_ROOT || "";
-        window.history.pushState(
-            opt_path,
-            opt_title || '',
-            root + opt_path.join('/')
-        );
-        return this.switchContext(opt_path);
-    }
 
     initStreams() {
 
@@ -252,9 +159,9 @@ export class Shell extends EventEmitter {
             'stderr': this.stderr
         };
 
-        const forward: (...a: any[]) => void =
-            (...args) => {
-                this.stdout.write(...args);
+        const forward: (a: SpanPack) => void =
+            (pack) => {
+                this.stdout.write(pack);
             }
 
         pipes.push(concentrator);
@@ -297,12 +204,12 @@ export class Shell extends EventEmitter {
             const pipeStreams: (a: ISys, b: ISys) => void =
                 (left, right) => {
 
-                    left.stdout.on('data', (...args: any[]) => {
-                        right.stdin.write(...args);
+                    left.stdout.on('data', (pack: SpanPack) => {
+                        right.stdin.write(pack);
                     });
 
-                    left.stdin.on('data', (...args: any[]) => {
-                        right.stdout.write(...args);
+                    left.stdin.on('data', (pack: SpanPack) => {
+                        right.stdout.write(pack);
                     });
                 };
 
@@ -561,25 +468,11 @@ export class Shell extends EventEmitter {
     loginUser(u: User) {
         this.user = u;
         semaphore.signal('user:login', u);
-
-        const next =
-            (startPath: string[] | undefined) => {
-                if (!startPath) {
-                    this.switchContext([u.id]);
-                }
-            };
-
-        if (!this.historyStarted) {
-            next(this.historyStarted);
-        }
-        else {
-            this.once('history:start', next);
-        }
     }
 
     logoutUser() {
         this.user = null;
-        semaphore.signal('user:logout');
+        semaphore.signal<void>('user:logout');
     }
 
 }

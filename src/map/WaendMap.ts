@@ -23,13 +23,13 @@ import Source from './Source';
 
 export interface MapOptions {
     root: Element;
-    projection: string;
+    projection?: string;
     extent?: Extent;
 }
 
 export default class WaendMap {
     private view: View;
-    private renderers: { [propName: string]: Renderer };
+    private renderers: { [id: string]: Renderer };
     private projection: InterfaceProjection;
 
     constructor(options: MapOptions) {

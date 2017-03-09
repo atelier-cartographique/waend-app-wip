@@ -1,5 +1,5 @@
 
-import * as turf from 'turf';
+import * as turf from '@turf/turf';
 import * as GeoJSON from 'geojson';
 import { IFeature, JSONGeometry, Coordinates, CoordPoint, CoordLinestring, CoordPolygon } from "./waend";
 import { copy } from "./util/index";

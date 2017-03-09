@@ -11,7 +11,7 @@
 
 import * as Promise from 'bluebird';
 
-import Env from '../lib/Env';
+import { set as setenv } from '../lib/Env';
 import semaphore from '../lib/Semaphore';
 import Mutex from '../lib/Mutex';
 
@@ -27,10 +27,10 @@ import { EndFn, Display, IDisplay } from "./Display";
 
 export interface IConsole {
     node: Element;
-    start: () => void;
-    display: () => IDisplay;
+    start: () => Shell;
 }
 
+export type ScreenFn = () => IDisplay;
 
 const startDisplay: (a: HTMLElement, b: Extent) => IDisplay =
     (root, rootExtent) => {
@@ -61,8 +61,8 @@ const startDisplay: (a: HTMLElement, b: Extent) => IDisplay =
     };
 
 
-export const Console: (a: Shell) => IConsole =
-    (shell) => {
+export const Console: () => IConsole =
+    () => {
         const node = DIV();
         const pager = Pager({ className: 'wc-pager' });
         const input = Input({ className: 'wc-input' });
@@ -76,8 +76,8 @@ export const Console: (a: Shell) => IConsole =
 
         const mutx = new Mutex();
 
-        const runCommand: (a: string) => void =
-            (command) => {
+        const runCommand: (a: Shell) => (b: string) => void =
+            (shell) => (command) => {
                 mutx.get()
                     .then((unlock) => {
                         input.disable();
@@ -94,17 +94,6 @@ export const Console: (a: Shell) => IConsole =
             };
 
 
-        const start =
-            () => {
-                semaphore.observe<string>('command:run', runCommand);
-
-                shell.stdout.on('data',
-                    (data: SpanPack) => pager.write(data));
-                shell.stderr.on('data',
-                    (data: SpanPack) => pager.write(data));
-            };
-
-
         const display =
             () => {
                 const parent = node.parentElement;
@@ -116,83 +105,28 @@ export const Console: (a: Shell) => IConsole =
                 throw (new Error('OrphanConsole'));
             }
 
-        return { node, start, display };
+
+        const start =
+            () => {
+                const shell = new Shell();
+                setenv<ScreenFn>('screen', display);
+
+                semaphore.observe<string>('command:run', runCommand(shell));
+
+                shell.stdout.on('data',
+                    (data: SpanPack) => pager.write(data));
+                shell.stderr.on('data',
+                    (data: SpanPack) => pager.write(data));
+
+                return shell;
+            };
+
+
+
+        return { node, start };
     }
 
 
-// class WebConsole extends Terminal {
-//     loader: Loader;
-//     container: HTMLDivElement;
-//     private inputField: HTMLInputElement;
-//     private onDisplay: boolean;
-//     private history: InputHistory;
-//     private commandMutex: Mutex;
-
-//     constructor(private root: Element, private mapContainer: Element) {
-//         super();
-//         this.commandMutex = new Mutex();
-//     }
-
-
-
-//     start() {
-//         // const map = this.shell.env.map;
-//         // const view = map.getView();
-//         // const navigator = view.navigator;
-//         // const node = navigator.getNode();
-//         // const eventsToFilter = _.without(navigator.events, 'click');
-
-//         // this.container = DIV();
-//         // this.pages = DIV();
-//         // this.pagesTitle = DIV();
-//         // this.dockContainer = DIV();
-
-//         // eventPreventer(this.container, eventsToFilter);
-//         // eventPreventer(this.dockContainer, eventsToFilter);
-//         // eventPreventer(this.pages, eventsToFilter);
-
-//         addClass(this.container, 'wc-container wc-element');
-//         addClass(this.pages, 'wc-pages wc-element');
-//         addClass(this.pagesTitle, 'wc-title');
-//         addClass(this.dockContainer, 'wc-dock wc-element');
-
-//         this.pages.appendChild(this.pagesTitle);
-
-//         this.root.appendChild(this.container);
-//         this.root.appendChild(this.pages);
-//         this.root.appendChild(this.dockContainer);
-
-//         this.dock = new Dock({
-//             container: this.dockContainer
-//         });
-
-//         this.insertInput();
-//         this.setButtons();
-//         // this.setMapBlock();
-//         this.history = new InputHistory();
-
-//         this.shell.stdout.on('data', (data) => this.write(data));
-//         this.shell.stderr.on('data', (data) => this.writeError(data));
-
-
-//         this.forwardMouseEvents();
-
-//         semaphore.observe<string>('terminal:run', (cmd) => this.runCommand(cmd));
-//         semaphore.observe<string>('start:loader', () => this.startLoader());
-//         semaphore.on('stop:loader', () => this.stopLoader());
-//     }
-
-
-
-
-
-//     write() {
-//         this.currentPage.appendChild(element);
-//     }
-
-//     makeCommand(options) {
-//         return (new WebCommand(this, options));
-//     }
 
 //     display(options = {}) {
 //         const display = new Display(this.root);
@@ -218,41 +152,4 @@ export const Console: (a: Shell) => IConsole =
 //         }
 //         return display;
 //     }
-
-//     hide() {
-//         this.onDisplay = true;
-//         addClass(this.container, 'wc-hide');
-//         addClass(this.pages, 'wc-hide');
-//         addClass(this.buttonsContainer, 'wc-hide');
-//         addClass(this.dockContainer, 'wc-hide');
-//     }
-
-//     show() {
-//         this.onDisplay = false;
-//         removeClass(this.container, 'wc-hide');
-//         removeClass(this.pages, 'wc-hide');
-//         removeClass(this.buttonsContainer, 'wc-hide');
-//         // removeClass(this.mapBlock, 'wc-hide');
-//         removeClass(this.dockContainer, 'wc-hide');
-//     }
-
-//     startLoader(text: string) {
-//         if (this.loader) {
-//             return null;
-//         }
-//         this.loader = new Loader(text);
-//         this.root.appendChild(this.loader.element);
-//         this.loader.start();
-//     }
-
-//     stopLoader() {
-//         if (this.loader) {
-//             this.loader.stop();
-//             removeElement(this.loader.element);
-//             this.loader = null;
-//         }
-//     }
-
-// }
-
 
