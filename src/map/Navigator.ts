@@ -20,7 +20,7 @@ import View from "./View";
 import WaendMap from "./WaendMap";
 
 import { Proj3857, vecDist } from '../lib/util';
-import { isKeyCode } from '../lib/util/dom';
+import { isKeyCode, KeyCode, CANVAS } from '../lib/util/dom';
 
 const logger = debug('waend:Navigator');
 
@@ -40,6 +40,12 @@ function transformRegion(T: Transform, opt_extent: Extent) {
     region.push(newExtent);
 }
 
+const isKeyI = isKeyCode(KeyCode.KEY_I);
+const isKeyO = isKeyCode(KeyCode.KEY_O);
+const isKeyUp = isKeyCode(KeyCode.UP_ARROW);
+const isKeyDown = isKeyCode(KeyCode.DOWN_ARROW);
+const isKeyLeft = isKeyCode(KeyCode.LEFT_ARROW);
+const isKeyRight = isKeyCode(KeyCode.RIGHT_ARROW);
 
 class NavigatorMode {
     protected modeName: string;
@@ -60,25 +66,25 @@ class NavigatorMode {
     wheel(_e: Event) { }
 
     keypress(event: KeyboardEvent) {
-        if (isKeyCode(event, 105)) { // i
+        if (isKeyI(event)) { // i
             this.navigator.zoomIn();
         }
-        else if (isKeyCode(event, 111)) { // o
+        else if (isKeyO(event)) { // o
             this.navigator.zoomOut();
         }
     }
 
     keyup(event: KeyboardEvent) {
-        if (isKeyCode(event, 38)) {
+        if (isKeyUp(event)) {
             this.navigator.south();
         }
-        else if (isKeyCode(event, 40)) {
+        else if (isKeyDown(event)) {
             this.navigator.north();
         }
-        else if (isKeyCode(event, 37)) {
+        else if (isKeyLeft(event)) {
             this.navigator.east();
         }
-        else if (isKeyCode(event, 39)) {
+        else if (isKeyRight(event)) {
             this.navigator.west();
         }
     }
@@ -297,7 +303,7 @@ class Navigator {
         const container = this.options.container,
             rect = container.getBoundingClientRect();
 
-        this.canvas = document.createElement('canvas');
+        this.canvas = CANVAS();
         this.canvas.width = rect.width;
         this.canvas.height = rect.height;
         this.canvas.style.backgroundColor = 'transparent';

@@ -15,7 +15,7 @@ import {
     Layer,
     Feature
 } from './Model';
-import { IChannel } from './waend';
+import { IChannel, ISyncMessage } from './waend';
 const logger = debug('waend:Bind');
 
 
@@ -190,40 +190,42 @@ class Bind extends EventEmitter {
         this.featurePages = {};
         this._groupCache = {};
 
-        semaphore.on('sync', (chan: IChannel, cmd: string, data: ModelData | string) => {
-            if ('update' === cmd) {
-                const modelData = <ModelData>data;
-                if (this.db.has(modelData.id)) {
-                    const model = this.db.get(modelData.id);
-                    model._updateData(modelData, false);
-                }
-            }
-            else if ('create' === cmd) {
-                const modelData = <ModelData>data;
-                const ctx = chan.type;
-                if ('layer' === ctx) {
-                    if (!this.db.has(modelData.id)) {
-                        const layerId = chan.id;
-                        const feature = new Feature(modelData);
-                        const comps = this.getComps(layerId);
-                        comps.push(<string>feature.id);
-                        this.db.record(comps, feature);
-                        this.changeParent(layerId);
+        semaphore.observe<ISyncMessage>('sync',
+            (message) => {
+                const { channel, event, data } = message;
+                if ('update' === event) {
+                    const modelData = <ModelData>data;
+                    if (this.db.has(modelData.id)) {
+                        const model = this.db.get(modelData.id);
+                        model._updateData(modelData, false);
                     }
                 }
-            }
-            else if ('delete' === cmd) {
-                const ctx = chan.type;
-                if ('layer' === ctx) {
-                    const fid = <string>data;
-                    if (this.db.has(fid)) {
-                        const layerId = chan.id;
-                        this.db.del(fid);
-                        this.changeParent(layerId);
+                else if ('create' === event) {
+                    const modelData = <ModelData>data;
+                    const ctx = channel.type;
+                    if ('layer' === ctx) {
+                        if (!this.db.has(modelData.id)) {
+                            const layerId = channel.id;
+                            const feature = new Feature(modelData);
+                            const comps = this.getComps(layerId);
+                            comps.push(<string>feature.id);
+                            this.db.record(comps, feature);
+                            this.changeParent(layerId);
+                        }
                     }
                 }
-            }
-        });
+                else if ('delete' === event) {
+                    const ctx = channel.type;
+                    if ('layer' === ctx) {
+                        const fid = <string>data;
+                        if (this.db.has(fid)) {
+                            const layerId = channel.id;
+                            this.db.del(fid);
+                            this.changeParent(layerId);
+                        }
+                    }
+                }
+            });
     }
 
     update(model: Model) {

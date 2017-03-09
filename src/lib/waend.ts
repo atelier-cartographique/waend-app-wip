@@ -1,6 +1,7 @@
 
 import Context from './Context';
 import Stream from './Stream';
+import { ModelData } from "./Model";
 
 export enum ContextIndex {
     SHELL = 0,
@@ -41,6 +42,14 @@ export interface ITerminal {
 export interface IChannel {
     type: string;
     id: string;
+}
+
+export type ISyncEvent = 'update' | 'create' | 'delete';
+
+export interface ISyncMessage {
+    channel: IChannel;
+    event: ISyncEvent;
+    data: ModelData | string;
 }
 
 

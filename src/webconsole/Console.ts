@@ -25,10 +25,6 @@ import {
 } from '../lib/util/dom';
 
 import { IEventChangeContext } from "../lib/waend";
-import InputHistory from "./WebHistory";
-import WaendMap from "./WaendMap";
-import Loader from "./WebLoader";
-
 
 type EventHandler = <T extends Event>(a: T) => void;
 

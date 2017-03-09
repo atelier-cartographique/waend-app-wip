@@ -11,10 +11,10 @@ export default class Dock {
     }
 
     addPage(page) {
-        const wrapper = document.createElement('div');
-        const buttons = document.createElement('div');
-        const closeBtn = document.createElement('div');
-        const collapseBtn = document.createElement('div');
+        const wrapper = DIV();
+        const buttons = DIV();
+        const closeBtn = DIV();
+        const collapseBtn = DIV();
 
         closeBtn.innerHTML = 'close';
         collapseBtn.innerHTML = 'collapse';

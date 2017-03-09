@@ -1,7 +1,7 @@
 
 import semaphore from '../lib/Semaphore';
-import { History } from './History';
-import { isKeyCode, KeyCode, addClass } from "../lib/util/dom";
+import { History, IHistory } from './History';
+import { isKeyCode, KeyCode, addClass, INPUT, DIV } from "../lib/util/dom";
 
 export interface InputOptions {
     className: string;
@@ -13,7 +13,7 @@ const isKeyDown = isKeyCode(KeyCode.DOWN_ARROW);
 
 
 
-const eventHandler: (a: HTMLInputElement, b: History) => (c: KeyboardEvent) => void =
+const eventHandler: (a: HTMLInputElement, b: IHistory) => (c: KeyboardEvent) => void =
     (input, history) => (event) => {
         if (isKeyEnter(event)) {
             const cmd = input.value.trim();
@@ -37,10 +37,10 @@ const eventHandler: (a: HTMLInputElement, b: History) => (c: KeyboardEvent) => v
 export const Input: (a: InputOptions) => Element =
     (options) => {
         const history = History();
-        const input = document.createElement('input');
-        const inputField = document.createElement('input');
-        const inputPrompt = document.createElement('div');
-        const inputBottomline = document.createElement('div');
+        const input = INPUT();
+        const inputField = INPUT();
+        const inputPrompt = DIV();
+        const inputBottomline = DIV();
 
         addClass(input, options.className);
         addClass(inputField, 'wc-input');

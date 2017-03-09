@@ -21,6 +21,7 @@ import Navigator from './Navigator';
 import WaendMap from './WaendMap';
 import Source from './Source';
 import { Feature } from '../lib/Model';
+import { CANVAS } from "../lib/util/dom";
 
 
 const document = window.document;
@@ -206,7 +207,7 @@ export default class View {
     }
 
     createCanvas(layerId: string) {
-        const canvas = document.createElement('canvas');
+        const canvas = CANVAS();
         const rect = this.getRect();
 
         canvas.id = layerId;

@@ -1,48 +1,62 @@
 
 
-export default class InputHistory {
-    constructor(options) {
-        this.commands = [];
-        this.currentIndex = -1;
-    }
 
-    resetIndex() {
-        this.currentIndex = this.commands.length;
-    }
+type HistMoveFn = () => string;
 
-    push(cmd) {
-        cmd = cmd.trim();
-        if (this.commands.length > 0) {
-            const lastCmd = this.commands[this.commands.length - 1];
-            if (lastCmd === cmd) {
-                return;
-            }
-        }
-        this.commands.push(cmd);
-        this.resetIndex();
-    }
-
-    backward() {
-        if (this.commands.length > 0) {
-            this.currentIndex -= 1;
-            if (this.currentIndex < 0) {
-                this.resetIndex();
-                return '';
-            }
-            return this.commands[this.currentIndex];
-        }
-        return '';
-    }
-
-    forward() {
-        if (this.commands.length > 0) {
-            this.currentIndex += 1;
-            if (this.currentIndex > (this.commands.length - 1)) {
-                this.currentIndex = -1;
-                return '';
-            }
-            return this.commands[this.currentIndex];
-        }
-        return '';
-    }
+export interface IHistory {
+    forward: HistMoveFn;
+    backward: HistMoveFn;
+    push: (a: string) => void;
 }
+
+
+
+export const History: () => IHistory =
+    () => {
+        const commands: string[] = [];
+        let currentIndex = -1;
+
+        const resetIndex =
+            () => {
+                currentIndex = commands.length - 1;
+                return currentIndex;
+            }
+
+        const push: (a: string) => number =
+            (cmd) => {
+                if (commands.length > 0) {
+                    const lastCmd = commands[commands.length - 1];
+                    if (lastCmd === cmd) {
+                        return currentIndex;
+                    }
+                }
+                commands.push(cmd);
+                return resetIndex();
+            }
+
+        const backward: HistMoveFn =
+            () => {
+                if (commands.length > 0) {
+                    currentIndex -= 1;
+                    if (currentIndex < 0) {
+                        currentIndex = +1;
+                    }
+                    return commands[currentIndex];
+                }
+                return '';
+            }
+
+        const forward: HistMoveFn =
+            () => {
+                if (commands.length > 0) {
+                    currentIndex += 1;
+                    if (currentIndex > (commands.length - 1)) {
+                        currentIndex = -1;
+                    }
+                    return commands[currentIndex];
+                }
+                return '';
+            }
+
+        return { push, backward, forward };
+    }

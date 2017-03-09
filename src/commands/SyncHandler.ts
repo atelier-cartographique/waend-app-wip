@@ -11,7 +11,7 @@
 import _ from 'lodash';
 
 import semaphore from '../Semaphore';
-import {getModelName} from '../helpers';
+import { getModelName } from '../helpers';
 
 class SyncHandler {
     constructor(container, context) {
@@ -22,7 +22,7 @@ class SyncHandler {
     }
 
     start() {
-        semaphore.on('sync', this.dispatch.bind(this));
+        semaphore.observe<ISyncMessage>('sync', this.dispatch.bind(this));
         return this;
     }
 
@@ -53,14 +53,14 @@ class SyncHandler {
         const db = binder.db;
         const ctx = chan.type;
         const cid = chan.id;
-        const elem = document.createElement('div');
+        const elem = DIV();
         const model = db.get(data.id);
         const comps = model.getPath();
         const path = `cc /${comps.join('/')}`;
-        const modelElem = document.createElement('div');
+        const modelElem = DIV();
 
         if ('user_id' in data) {
-            const userElem = document.createElement('span');
+            const userElem = SPAN();
             elem.appendChild(userElem);
             binder.getUser(data.user_id)
                 .then(user => {
@@ -95,17 +95,17 @@ class SyncHandler {
         const db = binder.db;
         const ctx = chan.type;
         const cid = chan.id;
-        const elem = document.createElement('div');
+        const elem = DIV();
 
         if ('layer' === ctx) {
             if (db.has(data.id)) {
                 var model = db.get(data.id);
                 const comps = binder.getComps(model.id);
                 const path = `cc /${comps.join('/')}`;
-                const modelElem = document.createElement('div');
+                const modelElem = DIV();
 
                 if ('user_id' in data) {
-                    const userElem = document.createElement('span');
+                    const userElem = SPAN();
                     elem.appendChild(userElem);
                     binder.getUser(data.user_id)
                         .then(user => {

@@ -164,10 +164,10 @@ export function toggleClass(elem: Element, c: string) {
     const ecStr = elem.getAttribute('class');
     const ec = ecStr ? ecStr.split(' ') : [];
     if (_.indexOf(ec, c) < 0) {
-        exports.addClass(elem, c);
+        addClass(elem, c);
     }
     else {
-        exports.removeClass(elem, c);
+        removeClass(elem, c);
     }
 }
 
@@ -183,16 +183,16 @@ export function removeClass(elem: Element, c: string) {
     elem.setAttribute('class', _.without(ec, c).join(' '));
 }
 
-export function emptyElement(elem: Element) {
+export function emptyElement(elem: Node) {
     while (elem.firstChild) {
-        exports.removeElement(elem.firstChild);
+        removeElement(elem.firstChild);
     }
     return elem;
 }
 
-export function removeElement(elem: Element, keepChildren = false) {
+export function removeElement(elem: Node, keepChildren = false) {
     if (!keepChildren) {
-        exports.emptyElement(elem);
+        emptyElement(elem);
     }
     const parent = elem.parentNode;
     const evt = document.createEvent('CustomEvent');
@@ -214,10 +214,10 @@ export function px(val = 0) {
 export function makeButton(label: string, attrs: any, callback: (a: MouseEvent) => void) {
     const button = DIV();
     const labelElement = SPAN();
-    exports.addClass(labelElement, 'label');
+    addClass(labelElement, 'label');
     labelElement.innerHTML = label;
 
-    exports.setAttributes(button, attrs);
+    setAttributes(button, attrs);
 
     if (callback) {
         button.addEventListener('click', event => {
@@ -235,7 +235,7 @@ export function makeInput(options: any, callback: (a: string | number) => void) 
     const wrapper = DIV();
     const type = options.type;
 
-    exports.setAttributes(wrapper, options.attrs || {});
+    setAttributes(wrapper, options.attrs || {});
 
     labelElement.innerHTML = options.label;
     inputElement.setAttribute('type', type);

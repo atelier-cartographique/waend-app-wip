@@ -1,5 +1,5 @@
 /*
- * app/src/wmap.js
+ * src/webconsole/index.ts
  *
  *
  * Copyright (C) 2015  Pierre Marchand <pierremarc07@gmail.com>
@@ -23,8 +23,6 @@ import { configurator } from './ModelConfig';
 import { IEventChangeContext, ContextIndex } from "../lib/waend";
 import Env from '../lib/Env';
 
-
-configureModels(configurator);
 
 
 function init() {

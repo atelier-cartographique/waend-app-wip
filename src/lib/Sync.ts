@@ -9,11 +9,12 @@
  */
 
 
-import * as _ from 'lodash';
 import * as SockJS from 'sockjs-client';
 import * as debug from 'debug';
 import semaphore from './Semaphore';
+import { ISyncMessage } from "./waend";
 const logger = debug('waend:Sync');
+
 
 let sock: WebSocket;
 const pendings: any[] = [];
@@ -27,17 +28,38 @@ function sockOpen() {
     }
 }
 
-function sockMessage(evt: MessageEvent) {
-    const data = evt.data || '[]';
-    try {
-        const args = JSON.parse(data);
+function assert(a: boolean) {
+    if (!a) {
+        throw (new Error());
+    }
+}
 
-        if (_.isArray(args) && (args.length > 1)) {
-            semaphore.signal('sync', ...args);
-        }
+function makeMessage(json: string): (null | ISyncMessage) {
+    try {
+        const msg = JSON.parse(json);
+        assert(msg.length === 3);
+
+        const channel = msg[0];
+        const event = msg[1];
+        const data = msg[2];
+
+        assert('type' in channel);
+        assert('id' in channel);
+        assert((typeof channel.type) === 'string');
+        assert((typeof channel.id) === 'string');
+        assert((typeof event) === 'string');
+
+        return { channel, event, data };
     }
     catch (err) {
-        logger(`sync.onmessage ${err}`);
+        return null;
+    }
+}
+
+function sockMessage(evt: MessageEvent) {
+    const message = makeMessage(evt.data);
+    if (message) {
+        semaphore.signal<ISyncMessage>('sync', message);
     }
 }
 

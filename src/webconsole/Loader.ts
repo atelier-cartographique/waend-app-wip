@@ -1,19 +1,21 @@
 
 
 export default class Loader {
-    constructor(text) {
+    private text: string;
+
+    constructor(text?: string) {
         this.text = text || 'loading';
         this.init();
     }
 
     init() {
-        const element = document.createElement('div');
-        const textElement = document.createElement('div');
-        const itemsElement = document.createElement('div');
+        const element = DIV();
+        const textElement = DIV();
+        const itemsElement = DIV();
         textElement.innerHTML = this.text;
         this.items = [];
         for (let i = 0; i < 100; i++) {
-            const item = document.createElement('div');
+            const item = DIV();
             addClass(item, 'wc-loader-item');
             itemsElement.appendChild(item);
             this.items.push(item);

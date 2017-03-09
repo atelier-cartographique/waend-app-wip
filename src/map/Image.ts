@@ -3,6 +3,7 @@ import config from '../config';
 import Painter from './Painter';
 import { CoordPolygon, ImageOptions } from "../lib/waend";
 import { Extent } from "../lib/Geometry";
+import { IMG } from "../lib/util/dom";
 
 const MEDIA_URL = config.mediaUrl;
 
@@ -15,7 +16,7 @@ export default class Image {
 
     load(coordinates: CoordPolygon, extentArray: number[], options: ImageOptions) {
         const painter = this.painter;
-        const img = document.createElement('img');
+        const img = IMG();
         const url = `${MEDIA_URL}/${options.image}`;
         const extent = new Extent(extentArray);
         const width = extent.getWidth();
