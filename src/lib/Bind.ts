@@ -15,7 +15,7 @@ import {
     Layer,
     Feature
 } from './Model';
-import { IChannel, ISyncMessage } from './waend';
+import { ISyncMessage } from './waend';
 const logger = debug('waend:Bind');
 
 

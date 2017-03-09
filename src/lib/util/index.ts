@@ -1,6 +1,5 @@
 
-
-import { Proj } from 'proj4';
+import { Proj } from "proj4";
 import { vec2 } from 'gl-matrix';
 import { Extent } from '../Geometry';
 import Transform from '../Transform';

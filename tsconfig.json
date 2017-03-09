@@ -1,7 +1,7 @@
 {
     "compilerOptions": {
-        "project": "./",
-        "outDir": "../js",
+        "project": "src",
+        "outDir": "js",
         "module": "commonjs",
         "moduleResolution": "node",
         "target": "es6",
@@ -17,9 +17,12 @@
         "sourceMap": false
     },
     "exclude": [
-        "commands",
-        "render0",
-        "embed",
-        "view"
+        "node_modules",
+        "**/*.spec.ts",
+        "local_packages",
+        "src/commands",
+        "src/render0",
+        "src/embed",
+        "src/view"
     ]
 }

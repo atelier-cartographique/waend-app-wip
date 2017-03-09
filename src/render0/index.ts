@@ -8,7 +8,6 @@
  *
  */
 
-import * as turf from 'turf';
 import { start, FrameFn, DataFn } from './gate';
 import { Extent, Polygon, LineString } from "../lib/Geometry";
 import { GeoModel, ModelProperties } from '../lib/Model';
@@ -20,6 +19,7 @@ import { paintLine, paintImage, processStyle, getParameter, paintSave, paintRest
 import { getKey as getTextureKey, addTexture } from './texture';
 import { select as selectFont } from './Font';
 import config from '../config';
+import { lineString as turfLineString, polygon as turfPolygon } from "@turf/helpers";
 
 
 const DEFAULT_FONT_URL = `${config.baseUrl}/fonts/default`;
@@ -54,7 +54,7 @@ const linestring: (b: CoordLinestring, c: ModelProperties, d: Transform) => Pain
         else {
             lineProject(coordinates);
             lineTransform(T, coordinates);
-            const extent = (new LineString(turf.lineString(coordinates))).getExtent();
+            const extent = (new LineString(turfLineString(coordinates))).getExtent();
             if ((extent.getHeight() > 1) || (extent.getWidth() > 1)) {
                 commands.push(paintLine(coordinates));
             }
@@ -67,7 +67,7 @@ const hatchedPolygon: (a: PainterCommand[], b: CoordPolygon, d: ModelProperties,
     (commands, coordinates, props, T) => {
         polygonProject(coordinates);
         polygonTransform(T, coordinates);
-        const p = new Polygon(turf.polygon(coordinates));
+        const p = new Polygon(turfPolygon(coordinates));
         const initialExtent = p.getExtent();
         const initialHeight = initialExtent.getHeight();
         const initialWidth = initialExtent.getWidth();
@@ -94,7 +94,7 @@ const hatchedPolygon: (a: PainterCommand[], b: CoordPolygon, d: ModelProperties,
 const textedPolygon: (a: PainterCommand[], b: CoordPolygon, d: ModelProperties, e: Transform) => PainterCommand[] =
     (commands, coordinates, props, T) => {
         polygonProject(coordinates);
-        const p = new Polygon(turf.polygon(coordinates));
+        const p = new Polygon(turfPolygon(coordinates));
         const fontUrl: string = getParameter(props, 'fontUrl', DEFAULT_FONT_URL);
         const fs: number = getParameter(props, 'fontsize', 0);
         const text: string = getParameter(props, 'text', '');
@@ -112,7 +112,7 @@ const imagedPolygon: (a: PainterCommand[], b: CoordPolygon, c: string, d: ModelP
     (commands, coordinates, image, props, T) => {
         polygonProject(coordinates);
         polygonTransform(T, coordinates);
-        const p = new Polygon(turf.polygon(coordinates));
+        const p = new Polygon(turfPolygon(coordinates));
         const extent = p.getExtent().getArray();
 
         const options: ImageOptions = {

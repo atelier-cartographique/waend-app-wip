@@ -17,7 +17,6 @@ import { get as getBinder } from './Bind';
 import { pathKey } from "./util";
 const logger = debug('waend:Model');
 
-const binder = getBinder();
 
 export interface ModelProperties {
     [propName: string]: any;
@@ -47,7 +46,7 @@ export class Model extends EventEmitter {
     }
 
     getPath() {
-        return binder.getComps(this.id);
+        return getBinder().getComps(this.id);
     }
 
     has(prop: string) {
@@ -90,13 +89,13 @@ export class Model extends EventEmitter {
         }
         logger('set', this.id, key);
         this.emit('set', key, val);
-        return binder.update(this);
+        return getBinder().update(this);
     }
 
     setData(data: ModelProperties) {
         this.data.properties = data;
         this.emit('set:data', data);
-        return binder.update(this);
+        return getBinder().update(this);
     }
 
     toJSON() {
@@ -164,7 +163,7 @@ export class Layer extends Model {
 
     getGroup() {
         const path = this.getPath();
-        return binder.getGroup(path[0], path[1]);
+        return getBinder().getGroup(path[0], path[1]);
     }
 
     isVisible() {
@@ -211,7 +210,7 @@ export class Feature extends GeoModel {
             this.data.geom = geom;
         }
         this.emit('set', 'geom', this.getGeometry());
-        return binder.update(this);
+        return getBinder().update(this);
     }
 }
 

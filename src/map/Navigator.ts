@@ -10,11 +10,12 @@
 
 // 'use strict';
 
+import { distance } from "@turf/turf";
+import { point as turfPoint } from "@turf/helpers";
 import Geometry, { Extent } from '../lib/Geometry';
 import Transform from '../lib/Transform';
 import region from '../lib/Region';
 import semaphore from '../lib/Semaphore';
-import * as turf from '@turf/turf';
 import * as debug from 'debug';
 import View from "./View";
 import WaendMap from "./WaendMap";
@@ -383,7 +384,7 @@ class Navigator {
         const hw = ((length - 1) / 2) + left;
         const leftVec = this.map.getCoordinateFromPixel([left, top]);
         const rightVec = this.map.getCoordinateFromPixel([right, top]);
-        const dist = turf.distance(turf.point(leftVec), turf.point(rightVec), 'kilometers') * 100000;
+        const dist = distance(turfPoint(leftVec), turfPoint(rightVec), 'kilometers') * 100000;
 
         const formatNumber = (n: number) => Math.ceil(n);
 

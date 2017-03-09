@@ -1,9 +1,9 @@
 
-import * as turf from '@turf/turf';
 import * as GeoJSON from 'geojson';
 import { IFeature, JSONGeometry, Coordinates, CoordPoint, CoordLinestring, CoordPolygon } from "./waend";
 import { copy } from "./util/index";
-
+import { bbox, bboxPolygon } from "@turf/turf";
+import { point as turfPoint } from "@turf/helpers";
 
 
 export type GeomOpt = Geometry | IFeature | JSONGeometry;
@@ -48,7 +48,7 @@ export class Geometry {
     }
 
     getExtent() {
-        return (new Extent(turf.bbox(geomToFeature(this.geometry))));
+        return (new Extent(bbox(geomToFeature(this.geometry))));
     }
 
     toGeoJSON() {
@@ -136,7 +136,7 @@ export class Extent {
     }
 
     toPolygon() {
-        return (new Polygon(turf.bboxPolygon(this.extent)));
+        return (new Polygon(bboxPolygon(this.extent)));
     }
 
     normalize() {
@@ -236,27 +236,27 @@ export class Extent {
     }
 
     getBottomLeft() {
-        const p = turf.point([this.extent[0], this.extent[1]]);
+        const p = turfPoint([this.extent[0], this.extent[1]]);
         return (new Point(p));
     }
 
     getBottomRight() {
-        const p = turf.point([this.extent[2], this.extent[1]]);
+        const p = turfPoint([this.extent[2], this.extent[1]]);
         return (new Point(p));
     }
 
     getTopLeft() {
-        const p = turf.point([this.extent[0], this.extent[3]]);
+        const p = turfPoint([this.extent[0], this.extent[3]]);
         return (new Point(p));
     }
 
     getTopRight() {
-        const p = turf.point([this.extent[2], this.extent[3]]);
+        const p = turfPoint([this.extent[2], this.extent[3]]);
         return (new Point(p));
     }
 
     getCenter() {
-        const p = turf.point([
+        const p = turfPoint([
             (this.extent[0] + this.extent[2]) / 2,
             (this.extent[1] + this.extent[3]) / 2
         ]);

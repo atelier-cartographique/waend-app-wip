@@ -8,13 +8,12 @@ type Resolver = (a: (b: Unlock) => void, c: (d: Error) => void) => void;
 
 class Mutex extends EventEmitter {
 
-    private static queueLength: 128;
     private queue: number;
 
-    constructor() {
+    constructor(private queueLength = 128) {
         super();
         this.queue = 0;
-        this.setMaxListeners(Mutex.queueLength);
+        this.setMaxListeners(this.queueLength);
     }
 
     get(): Promise<Unlock> {
@@ -30,7 +29,7 @@ class Mutex extends EventEmitter {
         if (this.queue > 0) {
             const resolver: Resolver =
                 (resolve, reject) => {
-                    if (this.queue >= Mutex.queueLength) {
+                    if (this.queue >= this.queueLength) {
                         return reject(new Error('QueueLengthExceeded'));
                     }
                     const index = this.queue;
