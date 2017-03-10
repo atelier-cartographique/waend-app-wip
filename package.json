@@ -19,7 +19,6 @@
     "@types/proj4": "^2.3.3",
     "@types/rbush": "^2.0.2",
     "@types/sockjs-client": "^1.0.30",
-    "@types/turf": "^3.5.32",
     "awesome-typescript-loader": "^3.1.2",
     "babel-cli": "^6.23.0",
     "babel-core": "^6.23.1",

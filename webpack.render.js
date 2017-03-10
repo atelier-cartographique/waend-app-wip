@@ -7,7 +7,7 @@ module.exports = {
     context: path.resolve(__dirname, 'src'),
 
     entry: {
-        console: './webconsole/index.ts'
+        render: './render0/index.ts'
     },
 
     output: {
@@ -29,7 +29,7 @@ module.exports = {
                     {
                         loader: 'awesome-typescript-loader',
                         options: {
-                            configFileName: 'tsconfig.json',
+                            configFileName: path.resolve(__dirname, 'src/render0/tsconfig-webworker.json'),
                             useBabel: true,
                             useCache: true,
                             babelOptions: {
